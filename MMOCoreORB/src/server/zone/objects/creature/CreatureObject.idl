@@ -38,6 +38,7 @@ import server.zone.objects.creature.credits.CreditObject;
 include engine.util.u3d.Vector3;
 include system.util.SortedVector;
 include engine.log.Logger;
+include server.zone.CloseObjectsVector;
 
 @mock
 class CreatureObject extends TangibleObject {
@@ -197,6 +198,8 @@ class CreatureObject extends TangibleObject {
 
 	public static final int MALE = 0;
 	public static final int FEMALE = 1;
+	
+	public static final int CREOCOVTYPE = 2;
 
 	public static transient float DEFAULTRUNSPEED;
 
@@ -2088,10 +2091,14 @@ class CreatureObject extends TangibleObject {
 
 	@dirty
 	public native boolean isPlayerCreature();
-	
+
 	@dirty
-	public int registerToCloseObjectsReceivers() {
-	    return isPlayerCreature();
+	public abstract int getReceiverFlags() {
+	    int type = CloseObjectsVector.CREOTYPE;
+	    if (isPlayerCreature())
+	        type = type | CloseObjectsVector.PLAYERTYPE;
+
+	    return type | super.getReceiverFlags();
 	}
 
 	@dirty
@@ -2159,4 +2166,6 @@ class CreatureObject extends TangibleObject {
 	@preLocked
 	public abstract void reloadTemplate() {
 	}
+
+	public native void updateCOV();
 }

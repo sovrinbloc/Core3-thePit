@@ -6,7 +6,7 @@ package server.zone.objects.scene;
 
 import engine.log.Logger;
 import engine.util.u3d.Coordinate;
-import engine.util.u3d.QuadTreeEntry;
+include server.zone.QuadTreeEntry;
 import system.util.Vector;
 import system.util.VectorMap;
 import engine.util.u3d.Quaternion;
@@ -68,6 +68,8 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	protected transient SharedObjectTemplate templateObject;
 
 	protected boolean sendToClient;
+
+	protected boolean collidable;
 
 	@dereferenced
 	protected ZoneReference zone;
@@ -187,6 +189,15 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	 * @post { this locked }
 	 */
 	public native void notifyLoadFromDatabase();
+
+    @dirty
+    public abstract int getReceiverFlags() {
+        int flags = super.getReceiverFlags();
+        if (collidable)
+            return CloseObjectsVector.COLLIDABLETYPE | flags;
+
+        return flags;
+    }
 
 	/**
 	 * Logs an info message
