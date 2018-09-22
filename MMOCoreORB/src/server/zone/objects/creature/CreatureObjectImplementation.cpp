@@ -84,6 +84,11 @@
 #include "engine/core/TaskManager.h"
 #include "server/zone/objects/creature/credits/CreditObject.h"
 
+#include "templates/customization/AssetCustomizationManagerTemplate.h"
+#include "templates/customization/BasicRangedIntCustomizationVariable.h"
+#include "templates/params/PaletteColorCustomizationVariable.h"
+#include "templates/appearance/PaletteTemplate.h"
+
 float CreatureObjectImplementation::DEFAULTRUNSPEED = 5.376;
 
 void CreatureObjectImplementation::initializeTransientMembers() {
@@ -122,6 +127,8 @@ void CreatureObjectImplementation::initializeMembers() {
 	posture = 0;
 	factionRank = 0;
 	faction = 0;
+
+	hueValue = -1;
 
 	stateBitmask = 0;
 	terrainNegotiation = 0.0f;
@@ -2886,6 +2893,9 @@ bool CreatureObjectImplementation::isAggressiveTo(CreatureObject* object) {
 	if (ghost->isOnLoadScreen())
 		return false;
 
+	if (hasPersonalEnemyFlag(object) && object->hasPersonalEnemyFlag(asCreatureObject()))
+		return true;
+
 	if (ConfigManager::instance()->getPvpMode() && isPlayerCreature())
 		return true;
 
@@ -3005,6 +3015,9 @@ bool CreatureObjectImplementation::isAttackableBy(CreatureObject* object, bool b
 
 	if (ghost == nullptr || targetGhost == nullptr)
 		return false;
+
+	if (hasPersonalEnemyFlag(object) && object->hasPersonalEnemyFlag(asCreatureObject()))
+		return true;
 
 	bool areInDuel = (ghost->requestedDuelTo(object) && targetGhost->requestedDuelTo(asCreatureObject()));
 
@@ -3549,4 +3562,133 @@ void CreatureObjectImplementation::updateCOV() {
 			}
 		}
 	}
+}
+
+void CreatureObjectImplementation::addPersonalEnemyFlag(CreatureObject* enemy, uint64 duration) {
+	uint64 expireTime = duration;
+
+	if (duration > 0) {
+		Time currentTime;
+		expireTime += currentTime.getMiliTime();
+
+		ManagedReference<CreatureObject*> creo = _this.getReferenceUnsafeStaticCast();
+		ManagedReference<CreatureObject*> strongEnemy = enemy->asCreatureObject();
+
+		Core::getTaskManager()->scheduleTask([creo, strongEnemy] {
+			Locker locker(creo);
+			creo->removePersonalEnemyFlag(strongEnemy);
+		}, "PersonalEnemyFlagExpiration", duration);
+	}
+
+	personalEnemyFlags.put(enemy->getObjectID(), expireTime);
+	sendPvpStatusTo(enemy);
+}
+
+void CreatureObjectImplementation::removePersonalEnemyFlag(CreatureObject* enemy) {
+	uint64 enemyID = enemy->getObjectID();
+
+	if (!personalEnemyFlags.drop(enemyID))
+		return;
+
+	sendPvpStatusTo(enemy);
+}
+
+void CreatureObjectImplementation::removePersonalEnemyFlag(uint64 enemyID) {
+	if (!personalEnemyFlags.drop(enemyID))
+		return;
+
+	ZoneServer* zoneServer = server->getZoneServer();
+	ManagedReference<CreatureObject*> enemy = zoneServer->getObject(enemyID).castTo<CreatureObject*>();
+
+	if (enemy != NULL)
+		sendPvpStatusTo(enemy);
+}
+
+bool CreatureObjectImplementation::hasPersonalEnemyFlag(CreatureObject* enemy) {
+	uint64 enemyOID = enemy->getObjectID();
+
+	if (!personalEnemyFlags.contains(enemyOID))
+		return false;
+
+	uint64 expireTime = personalEnemyFlags.get(enemyOID);
+
+	if (expireTime == 0)
+		return true;
+
+	Time currentTime;
+
+	return currentTime.getMiliTime() < expireTime;
+}
+
+void CreatureObjectImplementation::schedulePersonalEnemyFlagTasks() {
+	if (personalEnemyFlags.size() <= 0)
+		return;
+
+	Time currentTime;
+	uint64 curTime = currentTime.getMiliTime();
+
+	for (int i = personalEnemyFlags.size() - 1; i >= 0; i--) {
+		uint64 expireTime = personalEnemyFlags.get(i);
+		uint64 enemyID = personalEnemyFlags.getKey(i);
+
+		if (expireTime == 0)
+			continue;
+
+		if (expireTime <= curTime) {
+			personalEnemyFlags.drop(enemyID);
+		} else {
+			uint64 timeDiff = expireTime - curTime;
+
+			ManagedReference<CreatureObject*> creo = _this.getReferenceUnsafeStaticCast();
+
+			Core::getTaskManager()->scheduleTask([creo, enemyID, expireTime] {
+				Locker locker(creo);
+
+				if (creo->getPersonalEnemyFlagTime(enemyID) != expireTime)
+					return;
+
+				creo->removePersonalEnemyFlag(enemyID);
+			}, "PersonalEnemyFlagExpiration", timeDiff);
+		}
+	}
+}
+
+void CreatureObjectImplementation::setHue(int hueIndex) {
+	String appearanceFilename = getObjectTemplate()->getAppearanceFilename();
+	VectorMap<String, Reference<CustomizationVariable*> > variables;
+	AssetCustomizationManagerTemplate::instance()->getCustomizationVariables(appearanceFilename.hashCode(), variables, false);
+
+	for (int i = 0; i < variables.size(); ++i) {
+		String varName = variables.elementAt(i).getKey();
+		CustomizationVariable* customizationVariable = variables.elementAt(i).getValue().get();
+
+		if (customizationVariable == nullptr)
+			continue;
+
+		PaletteColorCustomizationVariable* palette = dynamic_cast<PaletteColorCustomizationVariable*>(customizationVariable);
+
+		if (palette == nullptr)
+			continue;
+
+		String paletteFileName = palette->getPaletteFileName();
+		PaletteTemplate* paletteTemplate = TemplateManager::instance()->getPaletteTemplate(paletteFileName);
+
+		if (paletteTemplate == nullptr)
+			continue;
+
+		int maxIndex = paletteTemplate->getColorCount();
+
+		int tempHue = hueIndex;
+
+		if (tempHue < 0)
+			tempHue = 0;
+		else if (tempHue >= maxIndex)
+			tempHue = maxIndex - 1;
+
+		setCustomizationVariable(varName, tempHue, true);
+
+		delete(paletteTemplate);
+	}
+
+	hueValue = hueIndex;
 }

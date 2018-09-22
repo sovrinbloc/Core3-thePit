@@ -155,6 +155,7 @@ class PlayerObject extends IntangibleObject {
 	protected unsigned long declaredResidence;
 
 	protected unsigned long cloningFacility;
+	protected boolean isPlayerCloning;
 
 	@dereferenced
 	protected SortedVector<unsigned long> persistentMessages;
@@ -312,6 +313,7 @@ class PlayerObject extends IntangibleObject {
 		declaredResidence = 0;
 
 		cloningFacility = 0;
+		isPlayerCloning = false;
 
 		skillPoints = 0;
 
@@ -989,6 +991,8 @@ class PlayerObject extends IntangibleObject {
 	public native void setForcePowerMax(int newValue, boolean notifyClient = true);
 
 	public native void doForceRegen();
+	
+	public native void recalculateForcePower();
 
 	@dirty
 	public native int getForcePowerRegen();
@@ -1860,5 +1864,13 @@ class PlayerObject extends IntangibleObject {
 			rating = PVP_RATING_FLOOR;
 
 		pvpRating = rating;
+	}
+	
+	public boolean isCloning() {
+		return isPlayerCloning;
+	}
+	
+	public void setCloning(boolean val) {
+		isPlayerCloning = val;
 	}
 }

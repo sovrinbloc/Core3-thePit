@@ -108,6 +108,7 @@ void SceneObjectImplementation::initializePrivateData() {
 
 	movementCounter = 0;
 
+	forceSend = false;
 	staticObject = false;
 
 	zone = NULL;
@@ -125,7 +126,7 @@ void SceneObjectImplementation::initializePrivateData() {
 
 	childObjects.setNoDuplicateInsertPlan();
 
-	collidable = false;
+	collidableObject = false;
 }
 
 void SceneObjectImplementation::loadTemplateData(SharedObjectTemplate* templateData) {
@@ -155,8 +156,8 @@ void SceneObjectImplementation::loadTemplateData(SharedObjectTemplate* templateD
 
 
 	if (!isCreatureObject() && !isLairObject() && gameObjectType != SceneObjectType::FURNITURE) {
-		if (templateData->getCollisionMaterialFlags() && templateData->getCollisionMaterialBlockFlags() && !templateData->isNavUpdatesEnabled()) {
-			collidable = true;
+		if (templateData->getCollisionMaterialFlags() && templateData->getCollisionMaterialBlockFlags() && templateData->isNavUpdatesEnabled()) {
+			collidableObject = true;
 		}
 	}
 }
@@ -305,7 +306,7 @@ void SceneObjectImplementation::sendWithoutParentTo(SceneObject* player) {
 }
 
 void SceneObjectImplementation::sendTo(SceneObject* player, bool doClose, bool forceLoadContainer) {
-	if (isClientObject() || !sendToClient || player == NULL || player->getClient() == NULL)
+	if ((isClientObject() && !forceSend) || !sendToClient || player == NULL || player->getClient() == NULL)
 		return;
 
 	/*StringBuffer msgInfo;

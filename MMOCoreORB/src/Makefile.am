@@ -222,6 +222,7 @@ core3_IDLS =	autogen/server/zone/objects/building/TutorialBuildingObject.cpp \
 				autogen/server/zone/objects/creature/buffs/DelayedBuff.cpp \
 				autogen/server/zone/objects/creature/buffs/SpiceBuff.cpp \
 				autogen/server/zone/objects/creature/buffs/PowerBoostBuff.cpp \
+				autogen/server/zone/objects/creature/buffs/ForceWeakenDebuff.cpp \
 				autogen/server/zone/objects/creature/buffs/DurationBuff.cpp \
 				autogen/server/zone/objects/creature/buffs/SpiceDownerBuff.cpp \
 				autogen/server/zone/objects/creature/buffs/PerformanceBuff.cpp \
@@ -436,6 +437,7 @@ core3_SOURCES =	$(core3_IDLS) \
 		server/zone/objects/installation/components/DetectorZoneComponent.cpp \
 		server/zone/objects/installation/components/FactoryObjectMenuComponent.cpp \
 		server/zone/objects/installation/components/MinefieldMenuComponent.cpp \
+		server/zone/objects/tangible/terminal/components/EnclaveTerminalMenuComponent.cpp \
 		server/zone/objects/tangible/terminal/components/StructureTerminalMenuComponent.cpp \
 		server/zone/objects/tangible/terminal/components/HQMenuComponent.cpp \
 		server/zone/objects/tangible/terminal/components/DestructibleBuildingMenuComponent.cpp \
@@ -708,6 +710,7 @@ core3_SOURCES =	$(core3_IDLS) \
 		server/zone/objects/creature/buffs/PlayerVehicleBuffImplementation.cpp \
 		server/zone/objects/creature/buffs/SpiceBuffImplementation.cpp \
 		server/zone/objects/creature/buffs/PowerBoostBuffImplementation.cpp \
+		server/zone/objects/creature/buffs/ForceWeakenDebuffImplementation.cpp \
 		server/zone/objects/creature/buffs/PerformanceBuffImplementation.cpp \
 		server/zone/objects/creature/buffs/SingleUseBuffObserverImplementation.cpp \
 		server/zone/objects/creature/buffs/SquadLeaderBuffObserverImplementation.cpp \
@@ -856,6 +859,7 @@ core3_SOURCES =	$(core3_IDLS) \
 		server/zone/managers/resource/ResourceManagerImplementation.cpp \
 		server/zone/managers/resource/InterplanetarySurveyImplementation.cpp \
 		server/zone/managers/reaction/ReactionManagerImplementation.cpp \
+		server/zone/managers/frs/FrsManagerDataImplementation.cpp \
 		server/zone/managers/frs/FrsManagerImplementation.cpp \
 		server/zone/managers/creature/CreatureManagerImplementation.cpp \
 		server/zone/managers/creature/PetManagerImplementation.cpp \

@@ -335,7 +335,7 @@ void PlayerObjectImplementation::notifySceneReady() {
 
 	sendFriendLists();
 
-	if (creature->isDead()) {
+	if (creature->isDead() && !isCloning()) {
 		//If the player is dead, see if they already have a clone box. If so, resend it.
 		ManagedReference<SuiBox*> cloneBox = getSuiBoxFromWindowType(SuiWindowType::CLONE_REQUEST);
 
@@ -1293,11 +1293,11 @@ void PlayerObjectImplementation::notifyOnline() {
 	//Login to jedi manager
 	JediManager::instance()->onPlayerLoggedIn(playerCreature);
 
-	if (getFrsData()->getRank() > 0) {
+	if (getFrsData()->getRank() >= 0) {
 		FrsManager* frsManager = zoneServer->getFrsManager();
 
 		if (frsManager != nullptr) {
-			frsManager->deductDebtExperience(playerCreature);
+			frsManager->playerLoggedIn(playerCreature);
 		}
 	}
 
@@ -1325,6 +1325,8 @@ void PlayerObjectImplementation::notifyOnline() {
 			missionManager->updatePlayerBountyOnlineStatus(id, true);
 		}
 	}
+
+	playerCreature->schedulePersonalEnemyFlagTasks();
 }
 
 void PlayerObjectImplementation::notifyOffline() {
@@ -1788,13 +1790,10 @@ void PlayerObjectImplementation::activateRecovery() {
 }
 
 void PlayerObjectImplementation::activateForcePowerRegen() {
-
 	ManagedReference<CreatureObject*> creature = dynamic_cast<CreatureObject*>(parent.get().get());
 
-	if (creature == nullptr) {
+	if (creature == nullptr)
 		return;
-	}
-
 
 	float regen = (float)creature->getSkillMod("jedi_force_power_regen");
 
@@ -1806,6 +1805,17 @@ void PlayerObjectImplementation::activateForcePowerRegen() {
 	}
 
 	if (!forceRegenerationEvent->isScheduled()) {
+		int forceControlMod = 0, forceManipulationMod = 0;
+
+		if (creature->hasSkill("force_rank_light_novice")) {
+			forceControlMod = creature->getSkillMod("force_control_light");
+			forceManipulationMod = creature->getSkillMod("force_manipulation_light");
+		} else if (creature->hasSkill("force_rank_dark_novice")) {
+			forceControlMod = creature->getSkillMod("force_power_dark");
+			forceManipulationMod = creature->getSkillMod("force_manipulation_dark");
+		}
+
+		regen += (forceControlMod + forceManipulationMod) / 10.f;
 
 		int regenMultiplier = creature->getSkillMod("private_force_regen_multiplier");
 		int regenDivisor = creature->getSkillMod("private_force_regen_divisor");
@@ -2660,3 +2670,30 @@ void PlayerObjectImplementation::checkAndShowTOS() {
 	creature->sendMessage(box->generateMessage());
 }
 
+void PlayerObjectImplementation::recalculateForcePower() {
+	ManagedReference<SceneObject*> parent = getParent().get();
+
+	if (parent == nullptr)
+		return;
+
+	CreatureObject* player = parent->asCreatureObject();
+
+	if (player == nullptr)
+		return;
+
+	int maxForce = player->getSkillMod("jedi_force_power_max");
+
+	int forcePowerMod = 0, forceControlMod = 0;
+
+	if (player->hasSkill("force_rank_light_novice")) {
+		forcePowerMod = player->getSkillMod("force_power_light");
+		forceControlMod = player->getSkillMod("force_control_light");
+	} else if (player->hasSkill("force_rank_dark_novice")) {
+		forcePowerMod = player->getSkillMod("force_power_dark");
+		forceControlMod = player->getSkillMod("force_control_dark");
+	}
+
+	maxForce += (forcePowerMod + forceControlMod) * 10;
+
+	setForcePowerMax(maxForce, true);
+}

@@ -69,7 +69,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	protected boolean sendToClient;
 
-	protected boolean collidable;
+	protected transient boolean collidableObject;
 
 	@dereferenced
 	protected ZoneReference zone;
@@ -98,6 +98,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	protected transient PendingTasksMap pendingTasks;
 
+	protected boolean forceSend;
 	protected boolean staticObject;
 
 	@dereferenced
@@ -193,7 +194,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
     @dirty
     public abstract int getReceiverFlags() {
         int flags = super.getReceiverFlags();
-        if (collidable)
+        if (collidableObject)
             return CloseObjectsVector.COLLIDABLETYPE | flags;
 
         return flags;
@@ -1835,6 +1836,10 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	public void setLoggingName(final string name) {
 		Logger.setLoggingName(name);
 	}
+	
+	public void setForceSend(boolean val) {
+		forceSend = val;
+	}
 
 	public void setClientObject(boolean val) {
 		staticObject = val;
@@ -1983,6 +1988,10 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	public void addChildObject(SceneObject obj) {
 		childObjects.put(obj);
+	}
+	
+	public void removeChildObject(SceneObject obj) {
+		childObjects.drop(obj);
 	}
 
 	@local
