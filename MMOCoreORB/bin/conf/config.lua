@@ -226,6 +226,11 @@ TermsOfService = ""
 
 CleanupMailCount = 25000
 
+RESTServerPort = 0
+
+InactiveAccountTitle = "Account Disabled"
+InactiveAccountText = "The server administrators have disabled your account."
+
 local localFile = loadfile("conf/config-local.lua")
 
 if (localFile ~= nil) then

@@ -76,6 +76,8 @@ ConfigManager::ConfigManager() {
 	syncLogOutput = false;
 	pathfinderLogJSON = false;
 	luaLogJSON = false;
+
+	restPort = 0;
 }
 
 bool ConfigManager::loadConfigData() {
@@ -165,6 +167,11 @@ bool ConfigManager::loadConfigData() {
 
 	termsOfService = getGlobalString("TermsOfService");
 	tosVersion = getGlobalInt("TermsOfServiceVersion");
+
+	restPort = getGlobalInt("RESTServerPort");
+
+	inactiveAccountTitle = getGlobalString("InactiveAccountTitle");
+	inactiveAccountText = getGlobalString("InactiveAccountText");
 
 	return true;
 }

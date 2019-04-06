@@ -6,6 +6,8 @@
  */
 
 #include "server/zone/managers/player/PlayerManager.h"
+#include <utility>
+#include <mutex>
 
 #include "server/zone/packets/charcreation/ClientCreateCharacterCallback.h"
 #include "server/zone/packets/charcreation/ClientCreateCharacterFailed.h"
@@ -349,13 +351,13 @@ void PlayerManagerImplementation::loadNameMap() {
 	info("loading character names");
 
 	try {
-		String query = "SELECT * FROM characters where character_oid > 16777216 and galaxy_id = " + String::valueOf(server->getGalaxyID()) + " order by character_oid asc";
+		String query = "SELECT character_oid, firstname FROM characters where character_oid > 16777216 and galaxy_id = " + String::valueOf(server->getGalaxyID()) + " order by character_oid asc";
 
 		Reference<ResultSet*> res = ServerDatabase::instance()->executeQuery(query);
 
 		while (res->next()) {
 			uint64 oid = res->getUnsignedLong(0);
-			String firstName = res->getString(3);
+			String firstName = res->getString(1);
 
 			if (!nameMap->put(firstName.toLowerCase(), oid)) {
 				error("error coliding name:" + firstName.toLowerCase());
@@ -1653,10 +1655,15 @@ int PlayerManagerImplementation::awardExperience(CreatureObject* player, const S
 	if (amount > 0)
 		speciesModifier = getSpeciesXpModifier(player->getSpeciesName(), xpType);
 
+	float buffMultiplier = 1.f;
+
+	if (player->hasBuff(BuffCRC::FOOD_XP_INCREASE) && !player->containsActiveSession(SessionFacadeType::CRAFTING))
+		buffMultiplier += player->getSkillModFromBuffs("xp_increase") / 100.f;
+
 	int xp = 0;
 
 	if (applyModifiers)
-		xp = playerObject->addExperience(xpType, (int) (amount * speciesModifier * localMultiplier * globalExpMultiplier));
+		xp = playerObject->addExperience(xpType, (int) (amount * speciesModifier * buffMultiplier * localMultiplier * globalExpMultiplier));
 	else
 		xp = playerObject->addExperience(xpType, (int)amount);
 
@@ -2984,7 +2991,7 @@ int PlayerManagerImplementation::checkSpeedHackFirstTest(CreatureObject* player,
 		}
 
 		SpeedModChange* firstChange = &changeBuffer->get(changeBuffer->size() - 1);
-		Time* timeStamp = &firstChange->getTimeStamp();
+		const Time* timeStamp = &firstChange->getTimeStamp();
 
 		if (timeStamp->miliDifference() > 2000) { // we already should have lowered the speed, 2 seconds lag
 			StringBuffer msg;
@@ -5067,8 +5074,19 @@ bool PlayerManagerImplementation::doBurstRun(CreatureObject* player, float hamMo
 	}
 
 	float hamReduction = 1.f - hamModifier;
-	hamCost *= hamReduction;
-	int newHamCost = (int) hamCost;
+
+	int healthCost = (int) (player->calculateCostAdjustment(CreatureAttribute::STRENGTH, hamCost) * hamReduction);
+	int actionCost = (int) (player->calculateCostAdjustment(CreatureAttribute::QUICKNESS, hamCost) * hamReduction);
+	int mindCost = (int) (player->calculateCostAdjustment(CreatureAttribute::FOCUS, hamCost) * hamReduction);
+
+	if (player->getHAM(CreatureAttribute::HEALTH) <= healthCost || player->getHAM(CreatureAttribute::ACTION) <= actionCost || player->getHAM(CreatureAttribute::MIND) <= mindCost) {
+		player->sendSystemMessage("@combat_effects:burst_run_wait"); // You are too tired to Burst Run.
+		return false;
+	}
+
+	player->inflictDamage(player, CreatureAttribute::HEALTH, healthCost, true);
+	player->inflictDamage(player, CreatureAttribute::ACTION, actionCost, true);
+	player->inflictDamage(player, CreatureAttribute::MIND, mindCost, true);
 
 	if (cooldownModifier > 1.0f) {
 		cooldownModifier = 1.0f;
@@ -5077,15 +5095,6 @@ bool PlayerManagerImplementation::doBurstRun(CreatureObject* player, float hamMo
 	float coodownReduction = 1.f - cooldownModifier;
 	cooldown *= coodownReduction;
 	int newCooldown = (int) cooldown;
-
-	if (player->getHAM(CreatureAttribute::HEALTH) <= newHamCost || player->getHAM(CreatureAttribute::ACTION) <= newHamCost || player->getHAM(CreatureAttribute::MIND) <= newHamCost) {
-		player->sendSystemMessage("@combat_effects:burst_run_wait"); // You are too tired to Burst Run.
-		return false;
-	}
-
-	player->inflictDamage(player, CreatureAttribute::HEALTH, newHamCost, true);
-	player->inflictDamage(player, CreatureAttribute::ACTION, newHamCost, true);
-	player->inflictDamage(player, CreatureAttribute::MIND, newHamCost, true);
 
 	StringIdChatParameter startStringId("cbt_spam", "burstrun_start_single");
 	StringIdChatParameter modifiedStartStringId("combat_effects", "instant_burst_run");
@@ -5261,35 +5270,78 @@ void PlayerManagerImplementation::sendAdminFRSList(CreatureObject* player) {
 }
 
 VectorMap<String, int> PlayerManagerImplementation::generateAdminList() {
+	static Mutex guard; //only one thread cann run this
+
+	Locker locker(&guard);
+
 	VectorMap<String, int> players;
 
 	HashTable<String, uint64> names = nameMap->getNames();
 	HashTableIterator<String, uint64> iter = names.iterator();
 
-	Reference<ObjectManager*> objectManager = server->getObjectManager();
+	auto objectManager = server->getObjectManager();
+	auto taskManager = Core::getTaskManager();
+
+	constexpr const int objectsPerTask = 500;
+
+	static SynchronizedVectorMap<String, int> sharedMap;
+	static AtomicInteger totalObjects;
+
+	totalObjects = names.size();
+
+	Vector<VectorMapEntry<String, uint64>> currentObjects;
+
+	int count = 0;
+	static TaskQueue* customQueue = [taskManager] () { return taskManager->initializeCustomQueue("AdminListThreads", 10); } (); //only once
 
 	while (iter.hasNext()) {
 		uint64 oid;
 		String playerName;
 		iter.getNextKeyAndValue(playerName, oid);
+		++count;
 
-		VectorMap<String, uint64> slottedObjects;
-		int state = 0;
+		currentObjects.emplace(std::move(playerName), std::move(oid));
 
-		objectManager->getPersistentObjectsSerializedVariable<VectorMap<String, uint64> >(STRING_HASHCODE("SceneObject.slottedObjects"), &slottedObjects, oid);
+		if (currentObjects.size() >= objectsPerTask || count >= names.size()) {
+			taskManager->executeTask([currentObjects, objectManager]() {
+				for (const auto& obj : currentObjects) {
+					try {
+						VectorMap<String, uint64> slottedObjects;
+						int state = 0;
 
-		uint64 ghostId = slottedObjects.get("ghost");
+						objectManager->getPersistentObjectsSerializedVariable<VectorMap<String, uint64> >(STRING_HASHCODE("SceneObject.slottedObjects"), &slottedObjects, obj.getValue());
 
-		if (ghostId == 0) {
-			continue;
-		}
+						uint64 ghostId = slottedObjects.get("ghost");
 
-		objectManager->getPersistentObjectsSerializedVariable<int>(STRING_HASHCODE("PlayerObject.adminLevel"), &state, ghostId);
+						if (ghostId == 0) {
+							totalObjects.decrement();
+							continue;
+						}
 
-		if (state != 0) {
-			players.put(playerName, state);
+						objectManager->getPersistentObjectsSerializedVariable<int>(STRING_HASHCODE("PlayerObject.adminLevel"), &state, ghostId);
+
+						if (state != 0) {
+							sharedMap.put(obj.getKey(), state);
+						}
+					} catch (...) {
+						Logger::console.error("unreported exception caught in GetAdminPlayerObjectTask");
+					}
+
+					totalObjects.decrement();
+				}
+
+			}, "GetAdminPlayerObjectTask", "AdminListThreads");
+
+			currentObjects.removeAll(objectsPerTask, 50);
 		}
 	}
+
+	taskManager->waitForQueueToFinish("AdminListThreads");
+
+	players = sharedMap.getMapUnsafe();
+
+	sharedMap.removeAll();
+	totalObjects = 0;
 
 	return players;
 }
@@ -5363,7 +5415,7 @@ void PlayerManagerImplementation::doPvpDeathRatingUpdate(CreatureObject* player,
 			highDamageAttacker = attacker;
 		}
 
-		if (ghost->hasOnKillerList(attacker->getObjectID())) {
+		if (attackerGhost->hasOnVictimList(player->getObjectID())) {
 			String stringFile;
 
 			if (attacker->getSpecies() == CreatureObject::TRANDOSHAN)
@@ -5413,7 +5465,7 @@ void PlayerManagerImplementation::doPvpDeathRatingUpdate(CreatureObject* player,
 			}
 		}
 
-		ghost->addToKillerList(attacker->getObjectID());
+		attackerGhost->addToVictimList(player->getObjectID());
 		throttleOnly = false;
 
 		if (defenderPvpRating > PlayerObject::PVP_RATING_FLOOR) {
@@ -5535,6 +5587,11 @@ void PlayerManagerImplementation::unlockFRSForTesting(CreatureObject* player, in
 
 	if (ghost == nullptr)
 		return;
+
+	if (player->hasSkill("force_rank_light_novice") || player->hasSkill("force_rank_dark_novice")) {
+		player->sendSystemMessage("You already have FRS skills. You must drop them before using this feature again.");
+		return;
+	}
 
 	SkillManager* skillManager = SkillManager::instance();
 

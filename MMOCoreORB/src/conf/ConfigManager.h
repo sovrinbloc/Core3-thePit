@@ -91,6 +91,11 @@ namespace conf {
 		String termsOfService;
 		int tosVersion;
 
+		int restPort = 0;
+
+		String inactiveAccountTitle;
+		String inactiveAccountText;
+
 	public:
 		ConfigManager();
 
@@ -362,6 +367,18 @@ namespace conf {
 
 		inline int getCleanupMailCount() const {
 			return cleanupMailCount;
+		}
+
+		inline int getRESTPort() const {
+			return restPort;
+		}
+
+		inline const String& getInactiveAccountTitle() const {
+			return inactiveAccountTitle;
+		}
+
+		inline const String& getInactiveAccountText() const {
+			return inactiveAccountText;
 		}
 	};
 }

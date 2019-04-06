@@ -23,11 +23,11 @@ DamageOverTime::DamageOverTime() {
 }
 
 DamageOverTime::DamageOverTime(CreatureObject* attacker,
-							   uint64 tp,
-							   uint8 attrib,
-							   uint32 str,
-							   uint32 dur,
-							   int secondaryStrength) {
+		uint64 tp,
+		uint8 attrib,
+		uint32 str,
+		uint32 dur,
+		int secondaryStrength) {
 
 	if (attacker != NULL)
 		setAttackerID(attacker->getObjectID());
@@ -87,6 +87,18 @@ void DamageOverTime::addSerializableVariables() {
 	addSerializableVariable("nextTick", &nextTick);
 	addSerializableVariable("secondaryStrength", &secondaryStrength);
 
+}
+
+void to_json(nlohmann::json& j, const DamageOverTime& t) {
+	j["attackerID"] = t.attackerID;
+	j["type"] = t.type;
+	j["attribute"] = t.attribute;
+	j["strength"] = t.strength;
+	j["duration"] = t.duration;
+	j["applied"] = t.applied;
+	j["expires"] = t.expires;
+	j["nextTick"] = t.nextTick;
+	j["secondaryStrength"] = t.secondaryStrength;
 }
 
 void DamageOverTime::activate() {

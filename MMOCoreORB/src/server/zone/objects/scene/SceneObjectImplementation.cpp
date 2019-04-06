@@ -41,6 +41,10 @@
 
 #include "variables/ContainerPermissions.h"
 
+#include <fstream>
+#include <sys/stat.h>
+#include <iomanip>
+
 void SceneObjectImplementation::initializeTransientMembers() {
 	ManagedObjectImplementation::initializeTransientMembers();
 
@@ -455,13 +459,13 @@ void SceneObjectImplementation::sendSlottedObjectsTo(SceneObject* player) {
 	VectorMap<String, ManagedReference<SceneObject* > > slotted;
 	getSlottedObjects(slotted);
 
-	SortedVector<SceneObject*> objects(slotted.size(), slotted.size());
+	SortedVector<uint64> objects(slotted.size(), slotted.size());
 	objects.setNoDuplicateInsertPlan();
 
 	for (int i = 0; i < slotted.size(); ++i) {
 		SceneObject* object = slotted.get(i);
 
-		if (objects.put(object) != -1) {
+		if (objects.put(object->getObjectID()) != -1) {
 			if (object->isInQuadTree()) {
 				notifyInsert(object);
 			} else {
@@ -1043,11 +1047,11 @@ Reference<SceneObject*> SceneObjectImplementation::getParentRecursively(uint32 g
 		return NULL;
 
 	if (temp->getGameObjectType() == gameObjectType)
-		return temp;
+		return std::move(temp);
 
 	while ((temp = temp->getParent().get()) != NULL && temp != asSceneObject()) {
 		if (temp->getGameObjectType() == gameObjectType) {
-			return temp;
+			return std::move(temp);
 		}
 	}
 
@@ -1179,11 +1183,23 @@ void SceneObjectImplementation::rotate(int degrees) {
 }
 
 void SceneObjectImplementation::fillObjectMenuResponse(ObjectMenuResponse* menuResponse, CreatureObject* player) {
-	return objectMenuComponent->fillObjectMenuResponse(asSceneObject(), menuResponse, player);
+	if (objectMenuComponent == nullptr) {
+		error("no object menu component set for " + templateObject->getTemplateFileName());
+
+		return;
+	} else {
+		return objectMenuComponent->fillObjectMenuResponse(asSceneObject(), menuResponse, player);
+	}
 }
 
 int SceneObjectImplementation::handleObjectMenuSelect(CreatureObject* player, byte selectedID) {
-	return objectMenuComponent->handleObjectMenuSelect(asSceneObject(), player, selectedID);
+	if (objectMenuComponent == nullptr) {
+		error("no object menu component set for " + templateObject->getTemplateFileName());
+
+		return 1;
+	} else {
+		return objectMenuComponent->handleObjectMenuSelect(asSceneObject(), player, selectedID);
+	}
 }
 
 void SceneObjectImplementation::setObjectName(StringId& stringID, bool notifyClient) {
@@ -1647,7 +1663,7 @@ bool SceneObjectImplementation::isDecoration() {
 }
 
 Reference<SceneObject*> SceneObjectImplementation::getContainerObjectRecursive(uint64 oid) {
-	ManagedReference<SceneObject*> obj = containerObjects.get(oid);
+	Reference<SceneObject*> obj = containerObjects.get(oid);
 
 	if (obj != NULL)
 		return obj;
@@ -1749,7 +1765,7 @@ Reference<SceneObject*> SceneObjectImplementation::getCraftedComponentsSatchel()
 		craftingComponentsSatchel = craftingComponents->getContainerObject(0);
 	}
 
-	return craftingComponentsSatchel;
+	return std::move(craftingComponentsSatchel);
 }
 
 int SceneObjectImplementation::getArrangementDescriptorSize() {
@@ -1907,4 +1923,100 @@ int SceneObject::compareTo(SceneObject* obj) {
 
 int SceneObjectImplementation::compareTo(SceneObject* obj) {
 	return asSceneObject()->compareTo(obj);
+}
+
+int SceneObjectImplementation::writeRecursiveJSON(JSONSerializationType& j) {
+	int count = 0;
+
+	JSONSerializationType thisObject;
+	writeJSON(thisObject);
+	j[String::valueOf(getObjectID()).toCharArray()] = thisObject;
+
+	count++;
+
+	for (int i = 0; i < getContainerObjectsSize(); ++i) {
+		auto obj = getContainerObject(i);
+
+		if (obj != nullptr) {
+			ReadLocker locker(obj);
+
+			count += obj->writeRecursiveJSON(j);
+		}
+	}
+
+	auto childObjects = getChildObjects();
+
+	for (int i = 0;i < childObjects->size(); ++i) {
+		auto obj = childObjects->get(i);
+
+		if (obj != nullptr) {
+			ReadLocker locker(obj);
+
+			count += obj->writeRecursiveJSON(j);
+		}
+	}
+
+	for (int i = 0;i < getSlottedObjectsSize(); ++i) {
+		auto obj =  getSlottedObject(i);
+
+		if (obj != nullptr) {
+			ReadLocker locker(obj);
+
+			count += obj->writeRecursiveJSON(j);
+		}
+	}
+
+	return count;
+}
+
+String SceneObjectImplementation::exportJSON(const String& exportNote) {
+	uint64 oid = getObjectID();
+
+	// Collect object and all children
+	nlohmann::json exportedObjects = nlohmann::json::object();
+
+	int count = 0;
+
+	try {
+		count = writeRecursiveJSON(exportedObjects);
+	} catch (Exception& e) {
+		info("SceneObjectImplementation::writeRecursiveJSON(): failed:" + e.getMessage(), true);
+	}
+
+	// Metadata
+	Time now;
+	nlohmann::json metaData = nlohmann::json::object();
+	metaData["exportTime"] = now.getFormattedTimeFull();
+	metaData["exportNote"] = exportNote;
+	metaData["rootObjectID"] = oid;
+	metaData["rootObjectClassName"] = _className;
+	metaData["objectCount"] = count;
+
+	// Root object is meta "exportObject"
+	nlohmann::json exportObject;
+	exportObject["metadata"] = metaData;
+	exportObject["objects"] = exportedObjects;
+
+	// Save to file...
+	StringBuffer fileNameBuf;
+
+	// Spread the files out across directories
+	fileNameBuf << "exports";
+	mkdir(fileNameBuf.toString().toCharArray(), 0770);
+
+	fileNameBuf << "/" << String::hexvalueOf((int64)((oid & 0xFFFF000000000000) >> 48));
+	mkdir(fileNameBuf.toString().toCharArray(), 0770);
+
+	fileNameBuf << "/" << String::hexvalueOf((int64)((oid & 0x0000FFFFFF000000) >> 24));
+	mkdir(fileNameBuf.toString().toCharArray(), 0770);
+
+	fileNameBuf << "/" << String::valueOf(oid) << ".json";
+
+	String fileName = fileNameBuf.toString();
+
+	std::ofstream jsonFile(fileName.toCharArray());
+	jsonFile << std::setw(4) << exportObject << std::endl;
+	jsonFile.close();
+
+	return fileName;
 }
