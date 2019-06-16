@@ -1195,19 +1195,17 @@ int CombatManager::getArmorReduction(TangibleObject* attacker, WeaponObject* wea
 		float armorReduction =  getArmorObjectReduction(psg, damageType);
 		float dmgAbsorbed = damage;
 
+		damage *= getArmorPiercing(psg, armorPiercing);
+
         if (armorReduction > 0) damage *= 1.f - (armorReduction / 100.f);
 
 		dmgAbsorbed -= damage;
 		if (dmgAbsorbed > 0)
 			sendMitigationCombatSpam(defender, psg, (int)dmgAbsorbed, PSG);
 
-		// inflict condition damage
-		// TODO: this formula makes PSG's take more damage than regular armor, but that's how it was on live
-		// it can be fixed by doing condition damage after all damage reductions
-
 		Locker plocker(psg);
 
-		psg->inflictDamage(psg, 0, damage * 0.1, true, true);
+		psg->inflictDamage(psg, 0, damage * 0.2, true, true);
 
 	}
 
@@ -2315,7 +2313,7 @@ void CombatManager::requestDuel(CreatureObject* player, CreatureObject* targetPl
 		return;
 	}
 
-	player->info("requesting duel");
+	player->info("requesting duel with " + String::valueOf(targetPlayer->getObjectID()));
 
 	ghost->addToDuelList(targetPlayer);
 
@@ -2391,7 +2389,7 @@ void CombatManager::requestEndDuel(CreatureObject* player, CreatureObject* targe
 		return;
 	}
 
-	player->info("ending duel");
+	player->info("ending duel with " + String::valueOf(targetPlayer->getObjectID()));
 
 	ghost->removeFromDuelList(targetPlayer);
 	player->removeDefender(targetPlayer);
@@ -2554,6 +2552,8 @@ void CombatManager::declineDuel(CreatureObject* player, CreatureObject* targetPl
 		StringIdChatParameter stringId2("duel", "cancel_target");
 		stringId2.setTT(player->getObjectID());
 		targetPlayer->sendSystemMessage(stringId2);
+
+		player->info("declined duel with " + String::valueOf(targetPlayer->getObjectID()));
 	}
 }
 

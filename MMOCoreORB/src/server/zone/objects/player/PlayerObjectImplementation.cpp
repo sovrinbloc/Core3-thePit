@@ -74,6 +74,8 @@
 #include "server/zone/managers/director/DirectorManager.h"
 
 void PlayerObjectImplementation::initializeTransientMembers() {
+	playerLogLevel = ConfigManager::instance()->getPlayerLogLevel();
+
 	IntangibleObjectImplementation::initializeTransientMembers();
 
 	foodFillingMax = 100;
@@ -85,6 +87,26 @@ void PlayerObjectImplementation::initializeTransientMembers() {
 	setLoggingName("PlayerObject");
 
 	initializeAccount();
+}
+
+PlayerObject* PlayerObjectImplementation::asPlayerObject() {
+	return _this.getReferenceUnsafeStaticCast();
+}
+
+PlayerObject* PlayerObject::asPlayerObject() {
+	    return this;
+}
+
+void PlayerObjectImplementation::info(const String& msg, bool force) {
+	getZoneServer()->getPlayerManager()->writePlayerLog(asPlayerObject(), msg, Logger::LogLevel::INFO);
+}
+
+void PlayerObjectImplementation::debug(const String& msg) {
+	getZoneServer()->getPlayerManager()->writePlayerLog(asPlayerObject(), msg, Logger::LogLevel::DEBUG);
+}
+
+void PlayerObjectImplementation::error(const String& msg) {
+	getZoneServer()->getPlayerManager()->writePlayerLog(asPlayerObject(), msg, Logger::LogLevel::ERROR);
 }
 
 void PlayerObjectImplementation::checkPendingMessages() {
@@ -302,7 +324,7 @@ int PlayerObjectImplementation::calculateBhReward() {
 }
 
 void PlayerObjectImplementation::sendBaselinesTo(SceneObject* player) {
-	debug("sending player object baselines");
+	// debug("sendBaselinesTo(" + String::valueOf(player->getObjectID()) + ")");
 
 	BaseMessage* play3 = new PlayerObjectMessage3(_this.getReferenceUnsafeStaticCast());
 	player->sendMessage(play3);
@@ -1257,6 +1279,8 @@ void PlayerObjectImplementation::notifyOnline() {
 	if (playerCreature == nullptr)
 		return;
 
+	miliSecsSession = 0;
+
 	ChatManager* chatManager = server->getChatManager();
 	ZoneServer* zoneServer = server->getZoneServer();
 
@@ -1572,7 +1596,7 @@ void PlayerObjectImplementation::logout(bool doLock) {
 
 			Reference<CreatureObject*> creature = dynamic_cast<CreatureObject*>(parent.get().get());
 
-			int isInSafeArea = creature->getSkillMod("private_safe_logout");
+			int isInSafeArea = creature->getSkillMod("private_safe_logout") || ConfigManager::instance()->getBool("Core3.Tweaks.PlayerObject.AlwaysSafeLogout", false);
 
 			disconnectEvent = new PlayerDisconnectEvent(_this.getReferenceUnsafeStaticCast(), isInSafeArea);
 
@@ -1603,7 +1627,7 @@ void PlayerObjectImplementation::doRecovery(int latency) {
 		return;
 
 	if (!isTeleporting()) {
-		creature->updateCOV();
+		creature->removeOutOfRangeObjects();
 	}
 
 	ZoneServer* zoneServer = creature->getZoneServer();
@@ -1613,7 +1637,7 @@ void PlayerObjectImplementation::doRecovery(int latency) {
 
 	if (isLinkDead()) {
 		if (logoutTimeStamp.isPast()) {
-			info("unloading dead link player");
+			info("unloading link dead player");
 
 			unload();
 
@@ -1625,7 +1649,7 @@ void PlayerObjectImplementation::doRecovery(int latency) {
 
 			return;
 		} else {
-			info("keeping dead linked player in game");
+			debug("keeping link dead player in game");
 		}
 	}
 
@@ -1677,6 +1701,9 @@ void PlayerObjectImplementation::doRecovery(int latency) {
 				cooldownTimerMap->updateToCurrentAndAddMili("weatherEvent", 3000);
 			}
 		}
+
+		miliSecsPlayed += latency;
+		miliSecsSession += latency;
 	}
 
 	if (cooldownTimerMap->isPast("spawnCheckTimer")) {
@@ -1846,8 +1873,10 @@ void PlayerObjectImplementation::setLinkDead(bool isSafeLogout) {
 	onlineStatus = LINKDEAD;
 
 	logoutTimeStamp.updateToCurrentTime();
-	if(!isSafeLogout)
-		logoutTimeStamp.addMiliTime(180000); // 3 minutes if unsafe
+	if(!isSafeLogout) {
+		info("went link dead");
+		logoutTimeStamp.addMiliTime(ConfigManager::instance()->getInt("Core3.Tweaks.PlayerObject.LinkDeadDelay", 3 * 60) * 1000); // 3 minutes if unsafe
+	}
 
 	setCharacterBit(PlayerObjectImplementation::LD, true);
 
@@ -2699,4 +2728,64 @@ void PlayerObjectImplementation::recalculateForcePower() {
 	maxForce += (forcePowerMod + forceControlMod) * 10;
 
 	setForcePowerMax(maxForce, true);
+}
+
+String PlayerObjectImplementation::getMiliSecsTimeString(uint64 miliSecs, bool verbose) {
+	uint64 ss = miliSecs / 1000;
+
+	int dd = ss / 86400;
+	ss = ss - (dd * 86400);
+
+	int hh = ss / 3600;
+	ss = ss - (hh * 3600);
+
+	int mm = ss / 60;
+	ss = ss - (mm * 60);
+
+	StringBuffer buf;
+
+	if (verbose) {
+		if (dd > 0)
+			buf << " " << dd << (dd == 1 ? " day," : " days,");
+
+		if (dd > 0 || hh > 0)
+			buf << " " << hh << (hh == 1 ? " hour," : " hours,");
+
+		if (dd > 0 || hh > 0 || mm > 0)
+			buf << " " << mm << (mm == 1 ? " minute," : " minutes,");
+
+		buf << " " << ss << (ss == 1 ? " second" : " seconds");
+	} else {
+		if (dd > 0)
+			buf << " " << dd << "d";
+
+		if (dd > 0 || hh > 0)
+			buf << " " << hh << "h";
+
+		if (dd > 0 || hh > 0 || mm > 0)
+			buf << " " << mm << "m";
+
+		buf << " " << ss << "s";
+	}
+
+	return buf.toString();
+}
+
+String PlayerObjectImplementation::getPlayedTimeString(bool verbose) {
+	StringBuffer buf;
+
+	if (verbose) {
+		buf << "You have played this character a total of";
+		buf << getMiliSecsTimeString(miliSecsPlayed, true);
+		buf << ", and ";
+		buf << getMiliSecsTimeString(miliSecsSession, true);
+		buf << " this session.";
+	} else {
+		buf << "played:";
+		buf << getMiliSecsTimeString(miliSecsPlayed, false);
+		buf << ", session:";
+		buf << getMiliSecsTimeString(miliSecsSession, false);
+	}
+
+	return buf.toString();
 }
