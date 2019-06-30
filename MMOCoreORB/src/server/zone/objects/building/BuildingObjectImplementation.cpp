@@ -476,14 +476,19 @@ void BuildingObjectImplementation::notifyInsert(QuadTreeEntry* obj) {
 				if (child != obj && child != nullptr) {
 					if ((objectInThisBuilding || (child->isCreatureObject() && isPublicStructure())) || isStaticBuilding()) {
 						if (child->getCloseObjects() != nullptr)
-							child->addInRangeObject(obj);
+							child->addInRangeObject(obj, false);
 						else
 							child->notifyInsert(obj);
 
+						child->sendTo(scno, true, false);
+
 						if (scno->getCloseObjects() != nullptr)
-							scno->addInRangeObject(child);
+							scno->addInRangeObject(child, false);
 						else
 							scno->notifyInsert(child);
+
+						if (scno->getParent() != nullptr)
+							scno->sendTo(child, true, false);
 					} else if (!scno->isCreatureObject() && !child->isCreatureObject()) {
 						child->notifyInsert(obj);
 						obj->notifyInsert(child);
@@ -535,6 +540,10 @@ void BuildingObjectImplementation::notifyDissapear(QuadTreeEntry* obj) {
 }
 
 void BuildingObjectImplementation::notifyPositionUpdate(QuadTreeEntry* entry) {
+#if ! COV_BUILDING_QUAD_RANGE
+	StructureObjectImplementation::notifyPositionUpdate(entry);
+	return;
+#else // COV_BUILDING_QUAD_RANGE
 #if DEBUG_COV_VERBOSE
 	if (getObjectID() == 88) { // Theed Cantina
 		info("BuildingObjectImplementation::notifyPositionUpdate(" + String::valueOf(entry->getObjectID()) + ")", true);
@@ -582,6 +591,7 @@ void BuildingObjectImplementation::notifyPositionUpdate(QuadTreeEntry* entry) {
 			e.printStackTrace();
 		}
 	}
+#endif // COV_BUILDING_QUAD_RANGE
 }
 
 void BuildingObjectImplementation::insert(QuadTreeEntry* entry) {
@@ -1765,7 +1775,11 @@ bool BuildingObjectImplementation::isBuildingObject() {
 }
 
 float BuildingObjectImplementation::getOutOfRangeDistance() const {
+#ifdef COV_BUILDING_QUAD_RANGE
 	return ZoneServer::CLOSEOBJECTRANGE * 4;
+#else // COV_BUILDING_QUAD_RANGE
+	return ZoneServer::CLOSEOBJECTRANGE;
+#endif // COV_BUILDING_QUAD_RANGE
 }
 
 String BuildingObjectImplementation::getCellName(uint64 cellID) {
