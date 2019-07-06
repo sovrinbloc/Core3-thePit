@@ -38,12 +38,13 @@ ServerDatabase::ServerDatabase(ConfigManager* configManager) {
 
 		String createTable = "CREATE TABLE `db_metadata` AS SELECT 1000 as `schema_version`;";
 		try {
-			instance()->executeQuery(createTable);
-			updateDatabaseSchema();
+			Reference<ResultSet*> result = instance()->executeQuery(createTable);
 		} catch (Exception& e) {
 			error("Failed to create db_metadata table, please manually create in mysql: " + createTable);
 		}
 	}
+
+	updateDatabaseSchema();
 
 	info("schema_version = " + String::valueOf(dbSchemaVersion), true);
 }
@@ -66,10 +67,13 @@ void ServerDatabase::alterDatabase(int nextSchemaVersion, const String& alterSql
 	String updateVersionSql = "UPDATE `db_metadata` SET `schema_version` = " + String::valueOf(nextSchemaVersion);
 
 	try {
-		instance()->executeQuery(alterSql);
-		instance()->executeQuery(updateVersionSql);
-		dbSchemaVersion = nextSchemaVersion;
-		info("Upgraded mysql database schema to version " + String::valueOf(dbSchemaVersion), true);
+		Reference<ResultSet*> result = instance()->executeQuery(alterSql);
+
+		if (result != nullptr) {
+			result = instance()->executeQuery(updateVersionSql);
+			dbSchemaVersion = nextSchemaVersion;
+			info("Upgraded mysql database schema to version " + String::valueOf(dbSchemaVersion), true);
+		}
 	} catch (Exception& e) {
 		error(e.getMessage());
 		error("Failed to update database schema, please manually execute: " + alterSql + "; " + updateVersionSql);
@@ -81,5 +85,27 @@ void ServerDatabase::updateDatabaseSchema() {
 		"ALTER TABLE `account_ips`"
 		" ADD COLUMN `galaxy_id` INT(5) DEFAULT -1 AFTER `account_id`,"
 		" ADD COLUMN `online_count` INT(4) DEFAULT -1 AFTER `logout`;"
+	);
+
+	alterDatabase(1002,
+		"CREATE TABLE `session_stats` ("
+		"`timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP"
+		",`ip` char(15) NOT NULL"
+		",`galaxy_id` int(5) DEFAULT '-1'"
+		",`account_id` int(10) unsigned NOT NULL"
+		",`character_oid` bigint(20) NOT NULL"
+		",`session_seconds` int(10) unsigned NOT NULL"
+		",`delta_seconds` int(10) unsigned NOT NULL"
+		",`delta_credits` int(11) NOT NULL"
+		",`delta_skillpoints` int(3) NOT NULL"
+		",`activity_xp` int(10) unsigned NOT NULL"
+		",`activity_movement` int(5) unsigned NOT NULL"
+		",`current_credits` int(11) unsigned NOT NULL"
+		",`ip_account_count` int(2) unsigned NOT NULL"
+		",`session_end` int(1) unsigned NOT NULL"
+		",KEY `idx_timestamp` (`timestamp`)"
+		",KEY `idx_ip` (`ip`)"
+		",KEY `idx_galaxy_ip` (`galaxy_id`,`ip`,`account_id`,`character_oid`)"
+		") ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 	);
 }
