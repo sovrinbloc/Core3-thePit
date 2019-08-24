@@ -211,20 +211,20 @@ public:
 	void loadDerv(IffStream* iffStream);
 	void parseFileData(IffStream* iffStream);
 
-	bool isDerivedFrom(const String& iffPath, bool includeSelf = true);
+	bool isDerivedFrom(const String& iffPath, bool includeSelf = true) const;
 
 	static String getType(int type);
 
-	inline String getAppearanceFilename() const {
-		return appearanceFilename;
+	inline const String& getAppearanceFilename() const {
+		return appearanceFilename.get();
 	}
 
 	inline float getClearFloraRadius() const {
 		return clearFloraRadius;
 	}
 
-	inline String getClientDataFile() const {
-		return clientDataFile;
+	inline const String& getClientDataFile() const {
+		return clientDataFile.get();
 	}
 
 	inline int getCollisionActionBlockFlags() const {
@@ -259,7 +259,7 @@ public:
 		return containerVolumeLimit;
 	}
 
-	inline String getDetailedDescription() {
+	inline String getDetailedDescription() const {
 		return detailedDescription.getFullString();
 	}
 
@@ -295,8 +295,8 @@ public:
 		return onlyVisibleInTools;
 	}
 
-	inline String getPortalLayoutFilename() const {
-		return portalLayoutFilename;
+	inline const String& getPortalLayoutFilename() const {
+		return portalLayoutFilename.get();
 	}
 
 	PortalLayout* getPortalLayout();
@@ -318,15 +318,15 @@ public:
 		loadedDerivedFiles.put(name);
 	}
 
-	inline float getMinScale() {
+	inline float getMinScale() const {
 		return scale.getMin();
 	}
 
-	inline float getMaxScale() {
+	inline float getMaxScale() const {
 		return scale.getMax();
 	}
 
-	inline bool isNoTrade() {
+	inline bool isNoTrade() const {
 		return noTrade;
 	}
 
@@ -338,7 +338,7 @@ public:
 		return sendToClient;
 	}
 
-	inline Vector<String>* getSlotDescriptors() {
+	inline const Vector<String>* getSlotDescriptors() const {
 		if (slotDescriptors == NULL)
 			return NULL;
 		else
@@ -353,8 +353,8 @@ public:
 		return surfaceType;
 	}
 
-	inline String getTintPallete() const {
-		return tintPallete;
+	inline const String& getTintPallete() const {
+		return tintPallete.get();
 	}
 
 	inline int getTotalCellNumber() const {
@@ -365,39 +365,39 @@ public:
 		return clientTemplateFileName.hashCode();
 	}
 
-	inline const String& getClientTemplateFileName() {
+	inline const String& getClientTemplateFileName() const {
 		return clientTemplateFileName;
 	}
 
-	inline uint32 getServerObjectCRC() {
+	inline uint32 getServerObjectCRC() const {
 		return fullTemplateString.hashCode();
 	}
 
-	inline const String& getFullTemplateString() {
+	inline const String& getFullTemplateString() const {
 		return fullTemplateString;
 	}
 
-	inline const String& getDataObjectComponent() {
+	inline const String& getDataObjectComponent() const {
 		return dataObjectComponent;
 	}
 
-	inline const String& getTemplateFileName() {
+	inline const String& getTemplateFileName() const {
 		return templateFileName;
 	}
 
-	inline const String& getContainerComponent() {
+	inline const String& getContainerComponent() const {
 		return containerComponent;
 	}
 
-	inline const String& getZoneComponent() {
+	inline const String& getZoneComponent() const {
 		return zoneComponent;
 	}
 
-	inline const String& getObjectMenuComponent() {
+	inline const String& getObjectMenuComponent() const {
 		return objectMenuComponent;
 	}
 
-	inline const String& getAttributeListComponent() {
+	inline const String& getAttributeListComponent() const {
 		return attributeListComponent;
 	}
 
@@ -425,7 +425,7 @@ public:
 		return inheritPermissionsFromParent;
 	}
 
-	HashTable<uint32, uint32>* getGroupPermissions() {
+	const HashTable<uint32, uint32>* getGroupPermissions() const {
 		return &groupPermissions;
 	}
 

@@ -218,11 +218,11 @@ void TemplateManager::loadSlotDefinitions() {
 
 	delete iffStream;
 
-	info("Loaded " + String::valueOf(slotDefinitions.size()) + " slot definitions.", true);
+	info("Loaded " + String::valueOf(slotDefinitions.size()) + " slot definitions.");
 }
 
 void TemplateManager::loadAssetCustomizationManager() {
-	info("loading asset customization manager", true);
+	info("loading asset customization manager");
 
 	IffStream* iffStream = openIffFile("customization/asset_customization_manager.iff");
 
@@ -373,12 +373,11 @@ void TemplateManager::loadPlanetMapCategories() {
 		planetMapCategoryList.put(planetMapCategory->getName(), planetMapCategory);
 	}
 
-	info("Loaded " + String::valueOf(planetMapCategoryList.size()) + " planet map categories.", true);
+	info("Loaded " + String::valueOf(planetMapCategoryList.size()) + " planet map categories.");
 }
 
 void TemplateManager::loadLuaTemplates() {
-
-	if( loadedTemplatesCount > 0 ) {
+	if (loadedTemplatesCount > 0) {
 		error("Templates already loaded");
 		return;
 	}
@@ -400,9 +399,9 @@ void TemplateManager::loadLuaTemplates() {
 	printf("\n");
 	info("Finished loading object templates", true);
 
-	info(String::valueOf(portalLayoutMap->size()) + " portal layouts loaded", true);
-	info(String::valueOf(floorMeshMap->size()) + " floor meshes loaded", true);
-	info(String::valueOf(structureFootprints.size()) + " structure footprints.", true);
+	info(String::valueOf(portalLayoutMap->size()) + " portal layouts loaded");
+	info(String::valueOf(floorMeshMap->size()) + " floor meshes loaded");
+	info(String::valueOf(structureFootprints.size()) + " structure footprints.");
 
 	delete luaTemplatesInstance;
 	luaTemplatesInstance = NULL;
@@ -484,7 +483,7 @@ void TemplateManager::addTemplate(uint32 key, const String& fullName, LuaObject*
 	if (!clientTemplateFile.isEmpty())
 		templateObject->addDerivedFile(clientTemplateFile);
 
-	info("loaded " + fullName);
+	debug("loaded " + fullName);
 
 	if (templateCRCMap->put(key, templateObject) != NULL) {
 		//error("duplicate template for " + fullName);
@@ -847,9 +846,9 @@ FloorMesh* TemplateManager::getFloorMesh(const String& fileName) {
 
 				floorMesh->readObject(iffStream);
 
-				info("parsed " + fileName);
+				debug("parsed " + fileName);
 			} catch (Exception& e) {
-				info("could not parse " + fileName);
+				warning("could not parse " + fileName);
 
 				delete floorMesh;
 				floorMesh = NULL;
@@ -949,9 +948,9 @@ PortalLayout* TemplateManager::getPortalLayout(const String& fileName) {
 
 				portalLayout->readObject(iffStream);
 
-				info("parsed " + fileName);
+				debug("parsed " + fileName);
 			} catch (Exception& e) {
-				info("could not parse " + fileName);
+				warning("could not parse " + fileName);
 
 				delete portalLayout;
 				portalLayout = NULL;

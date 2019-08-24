@@ -17,6 +17,7 @@ namespace server {
 using namespace server::zone;
 
 #include "server/login/LoginServer.h"
+#include "server/ping/PingServer.h"
 
 namespace conf {
 	class ConfigManager;
@@ -27,7 +28,6 @@ using namespace conf;
 class ServerDatabase;
 class MantisDatabase;
 class StatusServer;
-class PingServer;
 
 namespace server {
  namespace web {
@@ -58,11 +58,11 @@ class ServerCore : public Core, public Logger {
 
 	ManagedReference<server::login::LoginServer*> loginServer;
 
-	StatusServer* statusServer;
+	Reference<StatusServer*> statusServer;
 
 	server::features::Features* features;
 
-	PingServer* pingServer;
+	Reference<PingServer*> pingServer;
 
 	WebServer* webServer;
 
@@ -85,12 +85,13 @@ class ServerCore : public Core, public Logger {
 
 public:
 	ServerCore(bool truncateDatabases, SortedVector<String>& args);
+	~ServerCore();
 
 	void initialize() override;
 
 	void finalizeContext() override;
 
-	void initializeContext(int logLevel) override;
+	void initializeCoreContext();
 
 	void run() override;
 

@@ -111,7 +111,7 @@ void StructureObjectImplementation::notifyLoadFromDatabase() {
 
 	if (structurePermissionList.getOwner() != getOwnerObjectID()) {
 		structurePermissionList.setOwner(getOwnerObjectID());
-	} 
+	}
 
 	if (permissionsFixed == false) {
 
@@ -247,8 +247,8 @@ void StructureObjectImplementation::destroyOrphanCivicStructure() {
 	structureManager->destroyStructure(_this.getReferenceUnsafeStaticCast());
 }
 
-int StructureObjectImplementation::getLotSize() {
-	SharedStructureObjectTemplate* ssot = dynamic_cast<SharedStructureObjectTemplate*>(templateObject.get());
+int StructureObjectImplementation::getLotSize() const {
+	const SharedStructureObjectTemplate* ssot = dynamic_cast<SharedStructureObjectTemplate*>(templateObject.get());
 
 	if (ssot == NULL)
 		return 0;
@@ -289,7 +289,7 @@ String StructureObjectImplementation::getMaintenanceMods() {
 	return "-";
 }
 
-String StructureObjectImplementation::getTimeString(uint32 timestamp) {
+String StructureObjectImplementation::getTimeString(uint32 timestamp) const {
 	String abbrvs[4] = {"seconds", "minutes", "hours", "days"};
 
 	int intervals[4] = {1, 60, 3600, 86400};
@@ -543,7 +543,7 @@ void StructureObjectImplementation::updateStructureStatus() {
 }
 
 // Basic checks to see if structure is running tasks etc.
-String StructureObjectImplementation::getDebugStructureStatus() {
+String StructureObjectImplementation::getDebugStructureStatus() const {
 	StringBuffer status;
 
 	if (structureMaintenanceTask != nullptr) {
@@ -556,16 +556,16 @@ String StructureObjectImplementation::getDebugStructureStatus() {
 		ss -= mm * 60;
 		status << "Next maintenance check in";
 
-        if (dd > 0)
-            status << " " << dd << "d";
+		if (dd > 0)
+			status << " " << dd << "d";
 
-        if (dd > 0 || hh > 0)
-            status << " " << hh << "h";
+		if (dd > 0 || hh > 0)
+			status << " " << hh << "h";
 
-        if (dd > 0 || hh > 0 || mm > 0)
-            status << " " << mm << "m";
+		if (dd > 0 || hh > 0 || mm > 0)
+			status << " " << mm << "m";
 
-        status << " " << ss << "s";
+		status << " " << ss << "s";
 	} else {
 		if (getBaseMaintenanceRate() > 0) {
 			status << "WARNING: No maintenance task running on this structure";
@@ -651,10 +651,10 @@ void StructureObjectImplementation::addTemplateSkillMods(TangibleObject* targetO
 	if (tano == NULL)
 		return;
 
-	VectorMap<String, int>* mods = tano->getSkillMods();
+	const auto mods = tano->getSkillMods();
 
 	for (int i = 0; i < mods->size(); ++i) {
-		VectorMapEntry<String, int> entry = mods->elementAt(i);
+		const auto& entry = mods->elementAt(i);
 
 		targetObject->addSkillMod(SkillModManager::STRUCTURE, entry.getKey(), entry.getValue());
 	}
@@ -671,10 +671,10 @@ void StructureObjectImplementation::removeTemplateSkillMods(TangibleObject* targ
 	if (tano == NULL)
 		return;
 
-	VectorMap<String, int>* mods = tano->getSkillMods();
+	const auto mods = tano->getSkillMods();
 
 	for (int i = 0; i < mods->size(); ++i) {
-		VectorMapEntry<String, int> entry = mods->elementAt(i);
+		const auto& entry = mods->elementAt(i);
 
 		targetObject->removeSkillMod(SkillModManager::STRUCTURE, entry.getKey(), entry.getValue());
 	}
@@ -682,8 +682,8 @@ void StructureObjectImplementation::removeTemplateSkillMods(TangibleObject* targ
 	SkillModManager::instance()->verifyStructureSkillMods(targetObject);
 }
 
-bool StructureObjectImplementation::isCivicStructure() {
-	SharedStructureObjectTemplate* ssot = dynamic_cast<SharedStructureObjectTemplate*>(templateObject.get());
+bool StructureObjectImplementation::isCivicStructure() const {
+	const SharedStructureObjectTemplate* ssot = dynamic_cast<SharedStructureObjectTemplate*>(templateObject.get());
 
 	if (ssot == NULL)
 		return false;
@@ -696,7 +696,7 @@ bool StructureObjectImplementation::isCityHall() {
 	return dynamic_cast<CityHallZoneComponent*>(getZoneComponent()) != NULL;
 }
 
-bool StructureObjectImplementation::isCommercialStructure() {
+bool StructureObjectImplementation::isCommercialStructure() const {
 	SharedStructureObjectTemplate* ssot = dynamic_cast<SharedStructureObjectTemplate*>(templateObject.get());
 
 	if (ssot == NULL)
@@ -706,7 +706,7 @@ bool StructureObjectImplementation::isCommercialStructure() {
 	return ssot->isCommercialStructure();
 }
 
-bool StructureObjectImplementation::isGuildHall() {
+bool StructureObjectImplementation::isGuildHall() const {
 	for (int i = 0; i < childObjects.size(); i++) {
 		GuildTerminal* child = childObjects.get(i).castTo<GuildTerminal*>();
 
@@ -718,8 +718,8 @@ bool StructureObjectImplementation::isGuildHall() {
 	return false;
 }
 
-int StructureObjectImplementation::getBaseMaintenanceRate(){
-	Reference<SharedStructureObjectTemplate*> tmpl = cast<SharedStructureObjectTemplate*>(getObjectTemplate());
+int StructureObjectImplementation::getBaseMaintenanceRate() const {
+	const SharedStructureObjectTemplate* tmpl = cast<SharedStructureObjectTemplate*>(getObjectTemplate());
 
 	if(tmpl == NULL)
 		return 0;
@@ -727,8 +727,8 @@ int StructureObjectImplementation::getBaseMaintenanceRate(){
 	return tmpl->getBaseMaintenanceRate();
 }
 
-int StructureObjectImplementation::getBasePowerRate(){
-	Reference<SharedStructureObjectTemplate*> tmpl = cast<SharedStructureObjectTemplate*>(getObjectTemplate());
+int StructureObjectImplementation::getBasePowerRate() const {
+	const SharedStructureObjectTemplate* tmpl = cast<SharedStructureObjectTemplate*>(getObjectTemplate());
 
 	if(tmpl == NULL)
 		return 0;
@@ -736,11 +736,11 @@ int StructureObjectImplementation::getBasePowerRate(){
 	return tmpl->getBasePowerRate();
 }
 
-float StructureObjectImplementation::getDelayDestroyHours() {
+float StructureObjectImplementation::getDelayDestroyHours() const {
     return 30.0f * 24.0f; // Destroy after 30 days in the hole on maintenance
 }
 
-bool StructureObjectImplementation::isOnAdminList(CreatureObject* player) {
+bool StructureObjectImplementation::isOnAdminList(CreatureObject* player) const {
 	PlayerObject* ghost = player->getPlayerObject();
 
 	if (ghost != NULL && ghost->isPrivileged())

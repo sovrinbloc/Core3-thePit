@@ -234,16 +234,6 @@ BaseMessage* SceneObjectImplementation::link(uint64 objectID, uint32 containment
 	return new UpdateContainmentMessage(getObjectID(), objectID, containmentType);
 }
 
-//deprecated methods, updates are automatic now
-void SceneObjectImplementation::updateToDatabase() {
-}
-
-void SceneObjectImplementation::updateToDatabaseWithoutChildren() {
-}
-
-void SceneObjectImplementation::updateToDatabaseAllObjects(bool startTask) {
-}
-
 void SceneObjectImplementation::destroyObjectFromDatabase(bool destroyContainedObjects) {
 	//info("deleting from database", true);
 
@@ -1095,8 +1085,8 @@ Zone* SceneObjectImplementation::getZone() {
 }
 
 
-Zone* SceneObjectImplementation::getZoneUnsafe() {
-	auto root = getRootParentUnsafe();
+Zone* SceneObjectImplementation::getZoneUnsafe() const {
+	auto root = const_cast<SceneObjectImplementation*>(this)->getRootParentUnsafe();
 
 	if (root != NULL) {
 		return root->getZoneUnsafe();
@@ -1171,7 +1161,7 @@ float SceneObjectImplementation::getDistanceTo(Coordinate* coordinate) {
 	return Math::sqrt(deltaX * deltaX + deltaY * deltaY);
 }
 
-Quaternion* SceneObjectImplementation::getDirection() {
+const Quaternion* SceneObjectImplementation::getDirection() const {
 	return &direction;
 }
 
@@ -1204,7 +1194,7 @@ int SceneObjectImplementation::handleObjectMenuSelect(CreatureObject* player, by
 	}
 }
 
-void SceneObjectImplementation::setObjectName(StringId& stringID, bool notifyClient) {
+void SceneObjectImplementation::setObjectName(const StringId& stringID, bool notifyClient) {
 	objectName = stringID;
 }
 
@@ -1287,7 +1277,7 @@ float SceneObjectImplementation::getWorldPositionZ() {
 	return root->getPositionZ() + getPositionZ();
 }
 
-uint32 SceneObjectImplementation::getPlanetCRC() {
+uint32 SceneObjectImplementation::getPlanetCRC() const {
 	if (getZoneUnsafe() == NULL)
 		return 0;
 
@@ -1389,7 +1379,7 @@ void SceneObjectImplementation::createChildObjects() {
 		}
 
 		//childObjects.put(obj);
-		ContainerPermissions* permissions = obj->getContainerPermissions();
+		ContainerPermissions* permissions = obj->getContainerPermissionsForUpdate();
 		permissions->setOwner(getObjectID());
 		permissions->setInheritPermissionsFromParent(false);
 		permissions->setDefaultDenyPermission(ContainerPermissions::MOVECONTAINER);
@@ -1416,7 +1406,7 @@ void SceneObjectImplementation::destroyChildObjects() {
 	}
 }
 
-bool SceneObjectImplementation::isFacingObject(SceneObject* obj) {
+bool SceneObjectImplementation::isFacingObject(SceneObject* obj) const {
 	Vector3 thisPos = getPosition();
 	Vector3 targetPos = obj->getPosition();
 
@@ -1565,7 +1555,7 @@ ManagedWeakReference<SceneObject*> SceneObjectImplementation::getParent() {
 	return this->parent.staticCastToWeak<SceneObject*>();
 }
 
-SortedVector<ManagedReference<Observer* > > SceneObjectImplementation::getObservers(unsigned int eventType) {
+SortedVector<ManagedReference<Observer* > > SceneObjectImplementation::getObservers(unsigned int eventType) const {
 	return observerEventMap.getObservers(eventType);
 }
 
@@ -1658,7 +1648,7 @@ int SceneObjectImplementation::getSizeOnVendorRecursive() {
 	return count;
 }
 
-bool SceneObjectImplementation::isDecoration() {
+bool SceneObjectImplementation::isDecoration() const {
 	return (templateObject != NULL &&
 			(templateObject->getFullTemplateString().contains("object/tangible/furniture/city") ||
 					templateObject->getFullTemplateString().contains("object/building/player/city/garden")));
@@ -1682,7 +1672,7 @@ Reference<SceneObject*> SceneObjectImplementation::getContainerObjectRecursive(u
 	return obj;
 }
 
-const Vector<String>* SceneObjectImplementation::getArrangementDescriptor(int idx) {
+const Vector<String>* SceneObjectImplementation::getArrangementDescriptor(int idx) const {
 	return &templateObject->getArrangementDescriptors()->get(idx);
 }
 
@@ -1770,7 +1760,7 @@ Reference<SceneObject*> SceneObjectImplementation::getCraftedComponentsSatchel()
 	return std::move(craftingComponentsSatchel);
 }
 
-int SceneObjectImplementation::getArrangementDescriptorSize() {
+int SceneObjectImplementation::getArrangementDescriptorSize() const {
 	return templateObject->getArrangementDescriptors()->size();
 }
 
@@ -1863,7 +1853,7 @@ CreatureObject* SceneObject::asCreatureObject() {
 	return nullptr;
 }
 
-Vector<Reference<MeshData*> > SceneObjectImplementation::getTransformedMeshData(const Matrix4* parentTransform) {
+Vector<Reference<MeshData*> > SceneObjectImplementation::getTransformedMeshData(const Matrix4* parentTransform) const {
 	const AppearanceTemplate *appearance = getObjectTemplate()->getAppearanceTemplate();
 	if(appearance == NULL) {
 		Vector<Reference<MeshData*> > emptyData;

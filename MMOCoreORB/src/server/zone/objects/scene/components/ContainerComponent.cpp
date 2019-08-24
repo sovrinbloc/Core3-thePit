@@ -61,7 +61,7 @@ int ContainerComponent::canAddObject(SceneObject* sceneObject, SceneObject* obje
 
 	Locker contLocker(sceneObject->getContainerLock());
 
-	VectorMap<String, ManagedReference<SceneObject*> >* slottedObjects = sceneObject->getSlottedObjects();
+	const VectorMap<String, ManagedReference<SceneObject*> >* slottedObjects = sceneObject->getSlottedObjects();
 	VectorMap<uint64, ManagedReference<SceneObject*> >* containerObjects = sceneObject->getContainerObjects();
 
 	if (containmentType >= 4) {
@@ -97,7 +97,7 @@ int ContainerComponent::canAddObject(SceneObject* sceneObject, SceneObject* obje
 }
 
 bool ContainerComponent::checkContainerPermission(SceneObject* sceneObject, CreatureObject* creature, uint16 permission) const {
-	ContainerPermissions* permissions = sceneObject->getContainerPermissions();
+	auto permissions = sceneObject->getContainerPermissions();
 
 	if (permissions->getOwnerID() == creature->getObjectID()) {
 		return permissions->hasOwnerPermission(permission);

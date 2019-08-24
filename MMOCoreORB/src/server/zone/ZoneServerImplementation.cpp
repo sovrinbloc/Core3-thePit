@@ -50,8 +50,8 @@ ZoneServerImplementation::ZoneServerImplementation(ConfigManager* config) :
 	galaxyName = "Core3";
 
 	processor = NULL;
-	
-	
+
+
 	serverCap = 3000;
 
 	phandler = NULL;
@@ -151,7 +151,7 @@ void ZoneServerImplementation::initialize() {
 	chatManager->deploy("ChatManager");
 	chatManager->initiateRooms();
 
-	playerManager = new PlayerManager(_this.getReferenceUnsafeStaticCast(), processor);
+	playerManager = new PlayerManager(_this.getReferenceUnsafeStaticCast(), processor, true);
 	playerManager->deploy("PlayerManager");
 
 	chatManager->setPlayerManager(playerManager);
@@ -338,7 +338,11 @@ void ZoneServerImplementation::stopManagers() {
 	auctionManager = NULL;
 	petManager = NULL;
 	reactionManager = NULL;
-	frsManager = NULL;
+
+	if (frsManager != NULL) {
+		frsManager = NULL;
+	}
+
 	creatureTemplateManager = NULL;
 	dnaManager = NULL;
 	stringIdManager = NULL;

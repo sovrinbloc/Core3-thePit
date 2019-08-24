@@ -125,7 +125,7 @@ class StructureObject extends TangibleObject {
 		return true;
 	}
 
-	@dirty
+	@read
 	public native string getTimeString(unsigned int timestamp);
 
 	/**
@@ -150,6 +150,8 @@ class StructureObject extends TangibleObject {
 	public native abstract void updateStructureStatus();
 
 	@prelocked
+	@dirty
+	@read
 	public native string getDebugStructureStatus();
 
 	/**
@@ -157,7 +159,7 @@ class StructureObject extends TangibleObject {
 	 * @param player The creo of the player to check for admin permission.
 	 * @return Returns true if the player has admin permissions.
 	 */
-	@dirty
+	@read
 	public native boolean isOnAdminList(CreatureObject player);
 
 	/**
@@ -166,7 +168,7 @@ class StructureObject extends TangibleObject {
 	 * @param objectID The oid of the player/guild to check for admin permission.
 	 * @return Returns true if the player/guild has admin permissions.
 	 */
-	@dirty
+	@read
 	public boolean isOnAdminList(final unsigned long objectID) {
 		return structurePermissionList.isOnPermissionList("ADMIN", objectID);
 	}
@@ -281,7 +283,7 @@ class StructureObject extends TangibleObject {
 	 * Returns the cost to redeed this building. The redeed cost is 50 times the hourly maintenance rate.
 	 * @return int The cost to redeed this building.
 	 */
-	@dirty
+	@read
 	public int getRedeedCost() {
 		return (getBaseMaintenanceRate() * 50);
 	}
@@ -299,7 +301,7 @@ class StructureObject extends TangibleObject {
 		return deedObjectID;
 	}
 
-	@dirty
+	@read
 	public native int getLotSize();
 
 	@preLocked
@@ -313,13 +315,13 @@ class StructureObject extends TangibleObject {
 	@dirty
 	public native string getMaintenanceMods();
 
-	@dirty
+	@read
 	public native int getBaseMaintenanceRate();
 
-	@dirty
+	@read
 	public abstract native int getBasePowerRate();
 
-	@dirty
+	@read
 	public native float getDelayDestroyHours();
 
 	@read
@@ -463,16 +465,16 @@ class StructureObject extends TangibleObject {
 		return "";
 	}
 
-	@dirty
+	@read
 	public native boolean isCivicStructure();
 
 	@dirty
 	public native boolean isCityHall();
 
-	@dirty
+	@read
 	public native boolean isCommercialStructure();
 
-	@dirty
+	@read
 	public native boolean isGuildHall();
 
 	@preLocked
@@ -481,12 +483,12 @@ class StructureObject extends TangibleObject {
 		permissionsFixed = true;
 	}
 
-	@dirty
+	@read
 	public NavArea getNavArea() {
 		return navArea;
 	}
 
-	@dirty
+	@read
 	public boolean hasNavmesh() {
 		return navArea != null;
 	}

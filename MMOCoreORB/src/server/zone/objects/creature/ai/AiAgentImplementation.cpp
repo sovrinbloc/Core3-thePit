@@ -980,7 +980,7 @@ SceneObject* AiAgentImplementation::getTargetFromTargetsDefenders() {
 
 	Locker clocker(followCopy, asAiAgent());
 
-	DeltaVector<ManagedReference<SceneObject*> >* defenders = followCopy->getDefenderList();
+	const DeltaVector<ManagedReference<SceneObject*> >* defenders = followCopy->getDefenderList();
 
 	if (defenders->size() > 0) {
 		for (int i = 0; i < defenders->size(); ++i) {
@@ -2787,7 +2787,7 @@ bool AiAgentImplementation::isAggressiveTo(CreatureObject* target) {
 		Reference<CellObject*> curCell = getParent().get().castTo<CellObject*>();
 
 		if (curCell != NULL) {
-			ContainerPermissions* perms = curCell->getContainerPermissions();
+			auto perms = curCell->getContainerPermissions();
 
 			if (!perms->hasInheritPermissionsFromParent()) {
 				if (!curCell->checkContainerPermission(target, ContainerPermissions::WALKIN)) {
@@ -3065,7 +3065,7 @@ void AiAgentImplementation::resetBehaviorList() {
 
 void AiAgentImplementation::clearBehaviorList() {
 	for (int i = 0; i < behaviors.size(); i++) {
-		Behavior* b = behaviors.get(i);
+		Behavior* b = behaviors.getUnsafe(i).getValue();
 		if (b != NULL) {
 			delete b;
 			b = NULL;

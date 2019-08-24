@@ -160,7 +160,7 @@ void BuildingObjectImplementation::sendTo(SceneObject* player, bool doClose, boo
 	for (int i = 0; i < cells.size(); ++i) {
 		auto& cell = cells.get(i);
 
-		ContainerPermissions* perms = cell->getContainerPermissions();
+		auto perms = cell->getContainerPermissions();
 
 		if (!perms->hasInheritPermissionsFromParent()) {
 			CreatureObject* creo = player->asCreatureObject();
@@ -199,7 +199,7 @@ bool BuildingObjectImplementation::hasTemplateEjectionPoint() {
 		return true;
 }
 
-Vector3 BuildingObjectImplementation::getTemplateEjectionPoint() {
+Vector3 BuildingObjectImplementation::getTemplateEjectionPoint() const {
 	SharedBuildingObjectTemplate* buildingTemplate = templateObject.castTo<SharedBuildingObjectTemplate*>();
 
 	return buildingTemplate->getEjectionPoint();
@@ -1367,7 +1367,7 @@ void BuildingObjectImplementation::createChildObjects() {
 				}
 			}
 
-			ContainerPermissions* permissions = obj->getContainerPermissions();
+			ContainerPermissions* permissions = obj->getContainerPermissionsForUpdate();
 			permissions->setOwner(getObjectID());
 			permissions->setInheritPermissionsFromParent(false);
 			permissions->setDefaultDenyPermission(ContainerPermissions::MOVECONTAINER);
@@ -1538,7 +1538,7 @@ void BuildingObjectImplementation::spawnChildCreature(String& mobile, int respaw
 	childCreatureObjects.put(creature);
 }
 
-bool BuildingObjectImplementation::hasTemplateChildCreatures() {
+bool BuildingObjectImplementation::hasTemplateChildCreatures() const {
 	SharedBuildingObjectTemplate* buildingTemplate = cast<SharedBuildingObjectTemplate*>(getObjectTemplate());
 
 	if (buildingTemplate == nullptr)
@@ -1637,7 +1637,7 @@ void BuildingObjectImplementation::changeSign(SignTemplate* signConfig) {
 	getZone()->transferObject(signObject, -1, false);
 
 	// Set sign permissions
-	ContainerPermissions* permissions = signSceno->getContainerPermissions();
+	ContainerPermissions* permissions = signSceno->getContainerPermissionsForUpdate();
 	permissions->setOwner(getObjectID());
 	permissions->setInheritPermissionsFromParent(false);
 	permissions->setDefaultDenyPermission(ContainerPermissions::MOVECONTAINER);
@@ -1705,7 +1705,7 @@ BuildingObject* BuildingObjectImplementation::asBuildingObject() {
 	return _this.getReferenceUnsafeStaticCast();
 }
 
-Vector<Reference<MeshData*> > BuildingObjectImplementation::getTransformedMeshData(const Matrix4* parentTransform) {
+Vector<Reference<MeshData*> > BuildingObjectImplementation::getTransformedMeshData(const Matrix4* parentTransform) const {
 	Vector<Reference<MeshData*> > data;
 
 	Quaternion directionRecast(direction.getW(), direction.getX(), direction.getY(), -direction.getZ());
@@ -1782,7 +1782,7 @@ float BuildingObjectImplementation::getOutOfRangeDistance() const {
 #endif // COV_BUILDING_QUAD_RANGE
 }
 
-String BuildingObjectImplementation::getCellName(uint64 cellID) {
+String BuildingObjectImplementation::getCellName(uint64 cellID) const {
 	SharedBuildingObjectTemplate* buildingTemplate = templateObject.castTo<SharedBuildingObjectTemplate*>();
 
 	if (buildingTemplate == nullptr)

@@ -19,12 +19,12 @@ public:
 			: BaseLineMessage(tano->getObjectID(), objType, 3, opcnt) {
 		insertFloat(tano->getComplexity());
 
-		StringId* stringId = tano->getObjectName();
+		const StringId* stringId = tano->getObjectName();
 
 		insertStringId(stringId);
 
 		if (tano->isPlayerCreature()) {
-			Reference<PlayerObject*> ghost = (static_cast<CreatureObject*>(tano))->getPlayerObject();
+			auto ghost = (static_cast<CreatureObject*>(tano))->getPlayerObject();
 
 			if (ghost != NULL && ghost->hasGodMode()) {
 				UnicodeString name = tano->getCustomObjectName();
@@ -44,7 +44,7 @@ public:
 		tano->getCustomizationString(app);
 		insertAscii(app);
 
-		AutoDeltaSet<int>* visibleComponents = tano->getVisibleComponents();
+		auto visibleComponents = tano->getVisibleComponents();
 		visibleComponents->insertToMessage(this);
 
 		insertInt(tano->getOptionsBitmask());

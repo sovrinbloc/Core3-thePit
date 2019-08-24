@@ -24,6 +24,7 @@
 #include "server/zone/managers/director/DirectorManager.h"
 #include "server/zone/managers/collision/NavMeshManager.h"
 #include "server/zone/managers/name/NameManager.h"
+#include "server/zone/managers/frs/FrsManager.h"
 
 #include "server/zone/QuadTree.h"
 
@@ -58,6 +59,12 @@ ServerCore::ServerCore(bool truncateDatabases, SortedVector<String>& args) :
 	features = nullptr;
 
 	handleCmds = true;
+
+	initializeCoreContext();
+}
+
+ServerCore::~ServerCore() {
+	finalizeContext();
 }
 
 class ZoneStatisticsTask: public Task {
@@ -74,12 +81,10 @@ public:
 };
 
 void ServerCore::finalizeContext() {
-	Core::finalizeContext();
-
 	server::db::mysql::MySqlDatabase::finalizeLibrary();
 }
 
-void ServerCore::initializeContext(int logLevel) {
+void ServerCore::initializeCoreContext() {
 	server::db::mysql::MySqlDatabase::initializeLibrary();
 
 	class ThreadHook : public ThreadInitializer {
@@ -94,8 +99,6 @@ void ServerCore::initializeContext(int logLevel) {
 	};
 
 	Thread::setThreadInitializer(new ThreadHook());
-
-	Core::initializeContext(logLevel);
 }
 
 void ServerCore::signalShutdown() {
@@ -314,6 +317,7 @@ void ServerCore::shutdown() {
 
 		PlayerManager* playerManager = zoneServer->getPlayerManager();
 
+		playerManager->stopOnlinePlayerLogTask();
 		playerManager->disconnectAllPlayers();
 
 		int count = 0;
@@ -323,11 +327,16 @@ void ServerCore::shutdown() {
 		}
 
 		info("All players disconnected", true);
+
+		auto frsManager = zoneServer->getFrsManager();
+
+		if (frsManager != nullptr) {
+			frsManager->cancelTasks();
+		}
 	}
 
 	if (pingServer != nullptr) {
 		pingServer->stop();
-		delete pingServer;
 		pingServer = nullptr;
 	}
 
@@ -338,7 +347,6 @@ void ServerCore::shutdown() {
 
 	if (statusServer != nullptr) {
 		statusServer->stop();
-		delete statusServer;
 		statusServer = nullptr;
 	}
 
@@ -403,9 +411,6 @@ void ServerCore::shutdown() {
 		delete features;
 		features = nullptr;
 	}
-
-	mysql_thread_end();
-	server::db::mysql::MySqlDatabase::finalizeLibrary();
 
 	NetworkInterface::finalize();
 
@@ -680,6 +685,10 @@ void ServerCore::handleCommands() {
 				}
 			} else if (command == "dumpcfg" || command == "dumpconfig") {
 				ConfigManager::instance()->dumpConfig(arguments == "all" ? true : false);
+			} else if (command == "toggleModifiedObjectsDump") {
+				DOBObjectManager::setDumpLastModifiedTraces(!DOBObjectManager::getDumpLastModifiedTraces());
+
+				System::out << "dump last modified traces set to " << DOBObjectManager::getDumpLastModifiedTraces();
 			} else {
 				System::out << "unknown command (" << command << ")\n";
 			}

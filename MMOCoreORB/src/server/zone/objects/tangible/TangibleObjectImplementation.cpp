@@ -723,7 +723,7 @@ int TangibleObjectImplementation::healDamage(TangibleObject* healer, int damageT
 	return returnValue;
 }
 
-void TangibleObjectImplementation::setObjectName(StringId& stringID, bool notifyClient) {
+void TangibleObjectImplementation::setObjectName(const StringId& stringID, bool notifyClient) {
 	objectName = stringID;
 
 	if (!notifyClient)
@@ -875,7 +875,7 @@ void TangibleObjectImplementation::addTemplateSkillMods(TangibleObject* targetOb
 	if (tano == NULL)
 		return;
 
-	VectorMap<String, int>* mods = tano->getSkillMods();
+	const VectorMap<String, int>* mods = tano->getSkillMods();
 
 	for (int i = 0; i < mods->size(); ++i) {
 		VectorMapEntry<String, int> entry = mods->elementAt(i);
@@ -890,7 +890,7 @@ void TangibleObjectImplementation::removeTemplateSkillMods(TangibleObject* targe
 	if (tano == NULL)
 		return;
 
-	VectorMap<String, int>* mods = tano->getSkillMods();
+	const VectorMap<String, int>* mods = tano->getSkillMods();
 
 	for (int i = 0; i < mods->size(); ++i) {
 		VectorMapEntry<String, int> entry = mods->elementAt(i);
@@ -899,7 +899,7 @@ void TangibleObjectImplementation::removeTemplateSkillMods(TangibleObject* targe
 	}
 }
 
-VectorMap<String, int>* TangibleObjectImplementation::getTemplateSkillMods() {
+const VectorMap<String, int>* TangibleObjectImplementation::getTemplateSkillMods() const {
 	SharedTangibleObjectTemplate* tano = dynamic_cast<SharedTangibleObjectTemplate*>(templateObject.get());
 
 	if (tano == NULL)
@@ -1107,15 +1107,15 @@ void TangibleObjectImplementation::sendTo(SceneObject* player, bool doClose, boo
 	SceneObjectImplementation::sendTo(player, doClose, forceLoadContainer);
 }
 
-bool TangibleObjectImplementation::isCityStreetLamp(){
+bool TangibleObjectImplementation::isCityStreetLamp() const {
 	return (templateObject != NULL && templateObject->getFullTemplateString().contains("object/tangible/furniture/city/streetlamp"));
 }
 
-bool TangibleObjectImplementation::isCityStatue(){
+bool TangibleObjectImplementation::isCityStatue() const {
 	return (templateObject != NULL && templateObject->getFullTemplateString().contains("object/tangible/furniture/city/statue"));
 }
 
-bool TangibleObjectImplementation::isCityFountain(){
+bool TangibleObjectImplementation::isCityFountain() const {
 	return (templateObject != NULL && templateObject->getFullTemplateString().contains("object/tangible/furniture/city/fountain"));
 }
 
@@ -1138,7 +1138,7 @@ void TangibleObjectImplementation::setDisabled(bool disabled) {
 		clearOptionBit(OptionBitmask::DISABLED, true);
 }
 
-bool TangibleObjectImplementation::isDisabled() {
+bool TangibleObjectImplementation::isDisabled() const {
 	return getOptionsBitmask() & OptionBitmask::DISABLED;
 }
 

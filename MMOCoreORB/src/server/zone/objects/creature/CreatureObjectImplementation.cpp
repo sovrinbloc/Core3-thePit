@@ -1442,6 +1442,7 @@ void CreatureObjectImplementation::removeAllSkillModsOfType(const int modType, b
 
 int CreatureObjectImplementation::getSkillMod(const String& skillmod) {
 	Locker locker(&skillModMutex);
+
 	return skillModList.getSkillMod(skillmod);
 }
 
@@ -1844,9 +1845,11 @@ void CreatureObjectImplementation::updateTerrainNegotiation()
 }
 
 float CreatureObjectImplementation::getTerrainNegotiation() {
-    float slopeMod = ((float)getSkillMod("slope_move") / 50.0f) + terrainNegotiation;
-	if(slopeMod > 1)
+	float slopeMod = ((float)getSkillMod("slope_move") / 50.0f) + terrainNegotiation;
+
+	if (slopeMod > 1)
 		slopeMod = 1;
+
 	return slopeMod;
 }
 
@@ -2101,7 +2104,7 @@ void CreatureObjectImplementation::notifyLoadFromDatabase() {
 	ZoneServer* zoneServer = server->getZoneServer();
 	SkillManager* skillManager = SkillManager::instance();
 
-	SkillList* playerSkillList = getSkillList();
+	const SkillList* playerSkillList = getSkillList();
 
 	int totalSkillPointsWasted = 250;
 
@@ -2346,7 +2349,7 @@ void CreatureObjectImplementation::setAimingState(int durationSeconds) {
 		StateBuff* aiming = new StateBuff(asCreatureObject(), CreatureState::AIMING, durationSeconds);
 
 		int aimMods = 0;
-		Vector<String>* creatureAimMods = weapon->getCreatureAimModifiers();
+		const auto creatureAimMods = weapon->getCreatureAimModifiers();
 
 		for (int i = 0; i < creatureAimMods->size(); ++i) {
 			aimMods += getSkillMod(creatureAimMods->get(i));
@@ -3260,7 +3263,7 @@ void CreatureObjectImplementation::createChildObjects() {
 		if (obj == nullptr)
 			continue;
 
-		ContainerPermissions* permissions = obj->getContainerPermissions();
+		ContainerPermissions* permissions = obj->getContainerPermissionsForUpdate();
 		permissions->setOwner(getObjectID());
 		permissions->setInheritPermissionsFromParent(false);
 		permissions->setDefaultDenyPermission(ContainerPermissions::MOVECONTAINER);
@@ -3541,8 +3544,8 @@ bool CreatureObjectImplementation::hasDotImmunity(uint32 dotType) {
 	return false;
 }
 
-int CreatureObjectImplementation::getSpecies() {
-	SharedCreatureObjectTemplate* creoData = templateObject.castTo<SharedCreatureObjectTemplate*>().get();
+int CreatureObjectImplementation::getSpecies() const {
+	const SharedCreatureObjectTemplate* creoData = templateObject.castTo<SharedCreatureObjectTemplate*>().get();
 
 	if (creoData == nullptr)
 		return -1;
@@ -3550,8 +3553,8 @@ int CreatureObjectImplementation::getSpecies() {
 	return creoData->getSpecies();
 }
 
-int CreatureObjectImplementation::getGender() {
-	SharedCreatureObjectTemplate* creoData = templateObject.castTo<SharedCreatureObjectTemplate*>().get();
+int CreatureObjectImplementation::getGender() const {
+	const SharedCreatureObjectTemplate* creoData = templateObject.castTo<SharedCreatureObjectTemplate*>().get();
 
 	if (creoData == nullptr)
 		return -1;
@@ -3820,7 +3823,7 @@ void CreatureObjectImplementation::removePersonalEnemyFlag(uint64 enemyID) {
 		sendPvpStatusTo(enemy);
 }
 
-bool CreatureObjectImplementation::hasPersonalEnemyFlag(CreatureObject* enemy) {
+bool CreatureObjectImplementation::hasPersonalEnemyFlag(CreatureObject* enemy) const {
 	uint64 enemyOID = enemy->getObjectID();
 
 	if (!personalEnemyFlags.contains(enemyOID))

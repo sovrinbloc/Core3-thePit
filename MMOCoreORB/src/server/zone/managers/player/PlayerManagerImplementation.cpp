@@ -108,7 +108,8 @@
 #include "server/zone/objects/player/events/OnlinePlayerLogTask.h"
 #include <sys/stat.h>
 
-PlayerManagerImplementation::PlayerManagerImplementation(ZoneServer* zoneServer, ZoneProcessServer* impl) :
+PlayerManagerImplementation::PlayerManagerImplementation(ZoneServer* zoneServer, ZoneProcessServer* impl,
+							bool trackOnlineUsers) :
 										Logger("PlayerManager") {
 
 	playerLoggerFilename = "log/player.log";
@@ -161,7 +162,7 @@ PlayerManagerImplementation::PlayerManagerImplementation(ZoneServer* zoneServer,
 
 	int onlineLogSeconds = ConfigManager::instance()->getOnlineLogSeconds();
 
-	if (onlineLogSeconds > 0) {
+	if (onlineLogSeconds > 0 && trackOnlineUsers) {
 		onlinePlayerLogSum = 0;
 
 		Core::getTaskManager()->executeTask([=] () {
@@ -170,11 +171,21 @@ PlayerManagerImplementation::PlayerManagerImplementation(ZoneServer* zoneServer,
 	}
 }
 
+void PlayerManagerImplementation::stopOnlinePlayerLogTask() {
+	auto onlinePlayerLogTask = this->onlinePlayerLogTask.get();
+
+	if (onlinePlayerLogTask != nullptr) {
+		onlinePlayerLogTask->cancel();
+	}
+}
+
 bool PlayerManagerImplementation::rescheduleOnlinePlayerLogTask(int logSecs) {
+	auto onlinePlayerLogTask = this->onlinePlayerLogTask.get();
+
 	if (logSecs <= -1) {
 		if (onlinePlayerLogTask != nullptr) {
 			onlinePlayerLogTask->cancel();
-			onlinePlayerLogTask = nullptr;
+			this->onlinePlayerLogTask = onlinePlayerLogTask = nullptr;
 		}
 		info("Loging online players disabled.", true);
 		return true;
@@ -186,7 +197,7 @@ bool PlayerManagerImplementation::rescheduleOnlinePlayerLogTask(int logSecs) {
 	}
 
 	if (onlinePlayerLogTask == nullptr) {
-		onlinePlayerLogTask = new OnlinePlayerLogTask();
+		this->onlinePlayerLogTask = onlinePlayerLogTask = new OnlinePlayerLogTask();
 	} else {
 		onlinePlayerLogTask->cancel();
 	}
@@ -385,8 +396,7 @@ void PlayerManagerImplementation::loadPermissionLevels() {
 }
 
 void PlayerManagerImplementation::finalize() {
-	if (onlinePlayerLogTask != nullptr)
-		onlinePlayerLogTask->cancel();
+	stopOnlinePlayerLogTask();
 
 	nameMap = NULL;
 
@@ -1071,7 +1081,7 @@ int PlayerManagerImplementation::notifyDestruction(TangibleObject* destructor, T
 
 	ghost->addIncapacitationTime();
 
-	DeltaVector<ManagedReference<SceneObject*> >* defenderList = destructor->getDefenderList();
+	const DeltaVector<ManagedReference<SceneObject*> >* defenderList = destructor->getDefenderList();
 
 	bool isDefender = false;
 
@@ -4371,14 +4381,14 @@ SortedVector<String> PlayerManagerImplementation::getTeachableSkills(CreatureObj
 	SortedVector<String> skills;
 	skills.setNoDuplicateInsertPlan();
 
-	SkillList* skillList = teacher->getSkillList();
+	const SkillList* skillList = teacher->getSkillList();
 
 	SkillManager* skillManager = SkillManager::instance();
 
 	for (int i = 0; i < skillList->size(); ++i) {
-		Skill* skill = skillList->get(i);
+		const Skill* skill = skillList->get(i);
 
-		String skillName = skill->getSkillName();
+		const auto& skillName = skill->getSkillName();
 
 		if (!(skillName.contains("novice") || skillName.contains("force_sensitive") || skillName.contains("force_rank") || skillName.contains("force_title") || skillName.contains("admin_")) && skillManager->canLearnSkill(skillName, student, false))
 			skills.put(skillName);
@@ -6089,9 +6099,11 @@ void PlayerManagerImplementation::logOnlinePlayers(bool onlyWho) {
 						auto zone = creature->getZone();
 
 						if (zone != nullptr) {
-							logClient["worldPositionX"] = (int)creature->getWorldPositionX();
-							logClient["worldPositionZ"] = (int)creature->getWorldPositionZ();
-							logClient["worldPositionY"] = (int)creature->getWorldPositionY();
+							auto worldPosition = creature->getWorldPosition();
+
+							logClient["worldPositionX"] = (int)worldPosition.getX();
+							logClient["worldPositionZ"] = (int)worldPosition.getZ();
+							logClient["worldPositionY"] = (int)worldPosition.getY();
 							logClient["zone"] = zone->getZoneName();
 						}
 					} else {
