@@ -31,7 +31,7 @@ public:
 		arrivalVector.set(0.f, 0.f, 0.f);
 		interplanetaryTravelAllowed = false;
 		incomingTravelAllowed = true;
-		shuttleObject = NULL;
+		shuttleObject = nullptr;
 	}
 
 	PlanetTravelPoint(const String& zoneName, const String& cityName, Vector3 arrVector, Vector3 departVector, CreatureObject* shuttle) {
@@ -137,21 +137,21 @@ public:
 	/**
 	 * Returns true if this point is has the same zone and name that is passed in.
 	 */
-	inline bool isPoint(const String& zoneName, const String& name) {
+	inline bool isPoint(const String& zoneName, const String& name) const {
 		return (zoneName == pointZone && name == pointName);
 	}
 
 	/**
 	 * Returns true if this location allows interplanetary travel
 	 */
-	inline bool isInterplanetary() {
+	inline bool isInterplanetary() const {
 		return interplanetaryTravelAllowed;
 	}
 
 	/**
 	 * Returns true if this location allows incoming travel
 	 */
-	inline bool isIncomingAllowed() {
+	inline bool isIncomingAllowed() const {
 		return incomingTravelAllowed;
 	}
 
@@ -159,7 +159,7 @@ public:
 	 * Returns true if travel between this point and the passed in point is permitted.
 	 * @param arrivalPoint The destination point.
 	 */
-	bool canTravelTo(PlanetTravelPoint* arrivalPoint) {
+	bool canTravelTo(const PlanetTravelPoint* arrivalPoint) const {
 		if (arrivalPoint->getPointZone() == pointZone && arrivalPoint->isIncomingAllowed())
 			return true;
 
@@ -170,7 +170,7 @@ public:
 		return shuttleObject.get();
 	}
 
-	String toString() {
+	String toString() const {
 		StringBuffer buf;
 
 		buf << "[PlanetTravelPoint 0x" + String::hexvalueOf((int64)this)
@@ -181,14 +181,7 @@ public:
 			<< " Arrival: " << arrivalVector.toString()
 			<< " shuttle = ";
 
-		if(shuttleObject == NULL) {
-			buf << "NULL";
-		} else {
-			buf << "[oid:" << shuttleObject.get()->getObjectID()
-				<< " " << shuttleObject.get()->getObjectNameStringIdName()
-				<< " @ " << shuttleObject.get()->getWorldPosition().toString()
-				<< "]";
-		}
+			buf << "[oid:" << shuttleObject.getSavedObjectID() << "]";
 
 		buf << "]";
 

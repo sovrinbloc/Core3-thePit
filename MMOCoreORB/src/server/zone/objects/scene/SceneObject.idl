@@ -16,6 +16,7 @@ import system.util.SortedVector;
 import system.lang.ref.Reference;
 import engine.core.Task;
 import engine.util.u3d.Vector3;
+include engine.log.LoggerHelperStream;
 include engine.util.Facade;
 include templates.params.ObserverEventType;
 include server.zone.ZoneReference;
@@ -55,7 +56,6 @@ include templates.appearance.MeshData;
 include templates.collision.BaseBoundingVolume;
 include server.zone.objects.scene.variables.StdFunction;
 include server.metrics.Metrics;
-
 include engine.util.JSONSerializationType;
 
 @mock
@@ -197,7 +197,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	 */
 	public native void notifyLoadFromDatabase();
 
-	@dirty
+	@read
 	public abstract int getReceiverFlags() {
         	int flags = super.getReceiverFlags();
 	        if (collidableObject)
@@ -218,6 +218,13 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		Logger.info(msg, forced);
 	}
 
+	@read
+	@dereferenced
+	@local
+	public LoggerHelperStream info(int forced = false) /*int instead of bool because of const char* implicit cast to bool*/  {
+		return Logger.info(forced);
+	}
+
 	/**
 	 * Logs an error message
 	 * @pre {}
@@ -229,6 +236,13 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		Logger.error(msg);
 	}
 
+	@read
+	@dereferenced
+	@local
+	public LoggerHelperStream error()  {
+		return Logger.error();
+	}
+
 	/**
 	 * Logs a debug message
 	 * @pre {}
@@ -238,6 +252,13 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	@read
 	public void debug(final string msg) {
 		Logger.debug(msg);
+	}
+
+	@read
+	@dereferenced
+	@local
+	public LoggerHelperStream debug()  {
+		return Logger.debug();
 	}
 
 	/**
@@ -949,7 +970,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 
 	@local
 	@dereferenced
-	@dirty
+	@read
 	public native Vector3 getCoordinate(float distance, float angleDegrees, boolean includeZ);
 
 	@local
@@ -995,7 +1016,6 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		return direction.getW();
 	}
 
-	@dirty
 	@local
 	@read
 	public native final Quaternion getDirection();
@@ -1031,8 +1051,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		return objectName.getStringID();
 	}
 
-	@local
-	@dirty
+	@read
 	public abstract string getDetailedDescription() {
 		return templateObject.getDetailedDescription();
 	}
@@ -1053,7 +1072,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		return templateObject.getSlotDescriptors().get(idx);
 	}
 
-	@dirty
+	@read
 	public boolean hasSlotDescriptor(final string descr) {
 		for (int i = 0; i < getSlotDescriptorSize(); ++i) {
 			if (getSlotDescriptor(i) == descr)
@@ -1349,7 +1368,6 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	@local
 	@read
 	public boolean isGCWBase(){
-
 		return dataObjectComponent != null &&
 		dataObjectComponent.get() != null &&
 		dataObjectComponent.get().isGCWBaseData();
@@ -1404,20 +1422,20 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	}
 
 	@local
-	@dirty
+	@read
 	public ZoneComponent getZoneComponent() {
 		return zoneComponent;
 	}
 
 	@local
-	@dirty
+	@read
 	public ObjectMenuComponent getObjectMenuComponent() {
 		return objectMenuComponent;
 	}
 
 	@local
-	@dirty
-	public AttributeListComponent getAttributeListComponent() {
+	@read
+	public final AttributeListComponent getAttributeListComponent() {
 		return attributeListComponent;
 	}
 
@@ -1765,7 +1783,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		return gameObjectType == SceneObjectType.CAMPKIT;
 	}
 
-	@dirty
+	@read
 	public abstract boolean isCampStructure() {
 		return false;
 	}
@@ -1984,7 +2002,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	}
 
 	@local
-	public void setPlanetMapCategory(PlanetMapCategory pmc) {
+	public void setPlanetMapCategory(final PlanetMapCategory pmc) {
 		if (pmc == null)
 			planetMapCategory = 0;
 		else
@@ -1992,20 +2010,20 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	}
 
 	@local
-	public void setPlanetMapSubCategory(PlanetMapCategory pmc)  {
+	public void setPlanetMapSubCategory(final PlanetMapCategory pmc)  {
 		planetMapSubCategory = pmc.getCrc();
 	}
 
 	@local
 	@read
-	public PlanetMapCategory getPlanetMapCategory() {
+	public final PlanetMapCategory getPlanetMapCategory() {
 		TemplateManager templateManager = TemplateManager.instance();
 		return templateManager.getPlanetMapCategoryByCrc(planetMapCategory);
 	}
 
 	@local
 	@read
-	public PlanetMapCategory getPlanetMapSubCategory() {
+	public final PlanetMapCategory getPlanetMapSubCategory() {
 		TemplateManager templateManager = TemplateManager.instance();
 		return templateManager.getPlanetMapCategoryByCrc(planetMapSubCategory);
 	}
@@ -2067,16 +2085,16 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 	 */
 	public native abstract void initializeChildObject(SceneObject controllerObject);
 
-	@dirty
+	@read
 	public native boolean isInWater();
 
 	@dirty
 	public native boolean containsNoTradeObjectRecursive();
 
-	@dirty
+	@read
 	public native string getDisplayedName();
 
-	@ready
+	@read
 	public boolean doSendToClient() {
 		return sendToClient;
 	}
@@ -2085,7 +2103,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		sendToClient = val;
 	}
 
-	@dirty
+	@read
 	public abstract boolean isPet() {
 		return false;
 	}
@@ -2120,7 +2138,7 @@ class SceneObject extends QuadTreeEntry implements Logger, Metrics {
 		return false;
 	}
 
-	@dirty
+	@read
 	public native boolean isDataPad();
 
 	@dirty

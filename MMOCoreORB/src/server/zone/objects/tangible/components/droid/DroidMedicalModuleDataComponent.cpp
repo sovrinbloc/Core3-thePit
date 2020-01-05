@@ -9,15 +9,18 @@ DroidMedicalModuleDataComponent::DroidMedicalModuleDataComponent() {
 	setLoggingName("DroidMedicalModule");
 	rating = 0;
 }
+
 DroidMedicalModuleDataComponent::~DroidMedicalModuleDataComponent() {
 
 }
-String DroidMedicalModuleDataComponent::getModuleName() {
+
+String DroidMedicalModuleDataComponent::getModuleName() const {
 	return String("medical_module");
 }
+
 void DroidMedicalModuleDataComponent::initializeTransientMembers() {
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent == NULL) {
+	if (droidComponent == nullptr) {
 		info("droidComponent was null");
 		return;
 	}
@@ -25,9 +28,11 @@ void DroidMedicalModuleDataComponent::initializeTransientMembers() {
 		rating = droidComponent->getAttributeValue( "medical_module");
 	}
 }
+
 void DroidMedicalModuleDataComponent::updateCraftingValues(CraftingValues* values, bool firstUpdate) {
 	rating = values->getCurrentValue("medical_module");
 }
+
 int DroidMedicalModuleDataComponent::getMedicalRating() {
 	switch(rating) {
 		case 1:
@@ -52,39 +57,46 @@ void DroidMedicalModuleDataComponent::fillAttributeList(AttributeListMessage* al
 	// convert module rating to actual rating
 	alm->insertAttribute( "medical_module", getMedicalRating() );
 }
-String DroidMedicalModuleDataComponent::toString(){
+
+String DroidMedicalModuleDataComponent::toString() const {
 	return BaseDroidModuleComponent::toString();
 }
+
 void DroidMedicalModuleDataComponent::addToStack(BaseDroidModuleComponent* other) {
 	DroidMedicalModuleDataComponent* otherModule = cast<DroidMedicalModuleDataComponent*>(other);
-	if(otherModule == NULL)
+	if(otherModule == nullptr)
 		return;
 	rating = rating + otherModule->rating;
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent != NULL)
+	if (droidComponent != nullptr)
 		droidComponent->changeAttributeValue("medical_module",(float)rating);
 }
+
 void DroidMedicalModuleDataComponent::copy(BaseDroidModuleComponent* other) {
 	DroidMedicalModuleDataComponent* otherModule = cast<DroidMedicalModuleDataComponent*>(other);
-	if(otherModule == NULL)
+	if(otherModule == nullptr)
 		return;
 	rating = otherModule->rating;
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent != NULL)
+	if (droidComponent != nullptr)
 		droidComponent->addProperty("medical_module",(float)rating,0,"exp_effectiveness");
 }
+
 void DroidMedicalModuleDataComponent::onCall() {
 	// no op
 }
+
 void DroidMedicalModuleDataComponent::onStore() {
 	// no op on store
 }
+
 void DroidMedicalModuleDataComponent::loadSkillMods(CreatureObject* player) {
 	// add the rating to the player as a private medical center for right now we ignore the part about not usable in a static cantina we will handle that in the injury treatment task
 	// only add this is the payer didnt have it already.
 	player->removeAllSkillModsOfType(SkillModManager::DROID,true);
 	player->addSkillMod(SkillModManager::DROID,"private_medical_rating",getMedicalRating(),true);
 }
+
 void DroidMedicalModuleDataComponent::unloadSkillMods(CreatureObject* player) {
 	player->removeAllSkillModsOfType(SkillModManager::DROID,true);
 	//player->removeSkillMod(SkillModManager::DROID,"private_medical_rating",true);

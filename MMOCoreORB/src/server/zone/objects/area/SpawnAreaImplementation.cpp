@@ -23,12 +23,12 @@ void SpawnAreaImplementation::buildSpawnList(Vector<uint32>* groupCRCs) {
 	for (int i = 0; i < groupCRCs->size(); i++) {
 		SpawnGroup* group = ctm->getSpawnGroup(groupCRCs->get(i));
 
-		Vector<Reference<LairSpawn*> >* spawnList = group->getSpawnList();
+		const Vector<Reference<LairSpawn*> >& spawnList = group->getSpawnList();
 
-		for (int j = 0; j < spawnList->size(); j++) {
-			Reference<LairSpawn*> spawn = spawnList->get(j);
+		for (int j = 0; j < spawnList.size(); j++) {
+			const auto& spawn = spawnList.get(j);
 
-			possibleSpawns.add(spawn);
+			possibleSpawns.emplace(spawn);
 
 			totalWeighting += spawn->getWeighting();
 		}
@@ -48,9 +48,9 @@ Vector3 SpawnAreaImplementation::getRandomPosition(SceneObject* player) {
 		positionFound = true;
 
 		for (int i = 0; i < noSpawnAreas.size(); ++i) {
-			ManagedReference<SpawnArea*> noSpawnArea = noSpawnAreas.get(i).get();
+			auto noSpawnArea = noSpawnAreas.get(i).get();
 
-			if (noSpawnArea != NULL && noSpawnArea->containsPoint(position.getX(), position.getY())) {
+			if (noSpawnArea != nullptr && noSpawnArea->containsPoint(position.getX(), position.getY())) {
 				positionFound = false;
 				break;
 			}
@@ -70,7 +70,7 @@ int SpawnAreaImplementation::notifyObserverEvent(unsigned int eventType, Observa
 
 	SceneObject* sceno = dynamic_cast<SceneObject*>(observable);
 
-	if (sceno == NULL)
+	if (sceno == nullptr)
 		return 1;
 
 	Locker locker(_this.getReferenceUnsafeStaticCast());
@@ -91,7 +91,7 @@ int SpawnAreaImplementation::notifyObserverEvent(unsigned int eventType, Observa
 
 		Zone* thisZone = getZone();
 
-		if (sceno->isLairObject() && thisZone != NULL) {
+		if (sceno->isLairObject() && thisZone != nullptr) {
 			ManagedReference<ActiveArea*> area = (ServerCore::getZoneServer()->createObject(STRING_HASHCODE("object/active_area.iff"), 0)).castTo<ActiveArea*>();
 
 			Locker locker(area);
@@ -115,8 +115,8 @@ void SpawnAreaImplementation::tryToSpawn(SceneObject* object) {
 
 	Zone* zone = getZone();
 
-	if (zone == NULL) {
-		error("zone is NULL");
+	if (zone == nullptr) {
+		error("zone is nullptr");
 		return;
 	}
 
@@ -129,7 +129,7 @@ void SpawnAreaImplementation::tryToSpawn(SceneObject* object) {
 	int choice = System::random(totalWeighting - 1);
 	int counter = 0;
 
-	LairSpawn* finalSpawn = NULL;
+	LairSpawn* finalSpawn = nullptr;
 
 	for (int i = 0; i < possibleSpawns.size(); i++) {
 		LairSpawn* spawn = possibleSpawns.get(i);
@@ -142,7 +142,7 @@ void SpawnAreaImplementation::tryToSpawn(SceneObject* object) {
 		}
 	}
 
-	if (finalSpawn == NULL)
+	if (finalSpawn == nullptr)
 		return;
 
 	ManagedReference<PlanetManager*> planetManager = zone->getPlanetManager();
@@ -196,10 +196,8 @@ void SpawnAreaImplementation::tryToSpawn(SceneObject* object) {
 
 	ManagedReference<SceneObject*> obj = creatureManager->spawn(lairHashCode, difficultyLevel, difficulty, randomPosition.getX(), spawnZ, randomPosition.getY(), finalSpawn->getSize());
 
-	if (obj != NULL) {
-		StringBuffer msg;
-		msg << "lair spawned at " << obj->getPositionX() << " " << obj->getPositionY();
-		obj->info(msg.toString());
+	if (obj != nullptr) {
+		obj->debug() << "lair spawned at " << obj->getPositionX() << " " << obj->getPositionY();
 	} else {
 		error("could not spawn lair " + lairTemplate);
 
@@ -210,7 +208,7 @@ void SpawnAreaImplementation::tryToSpawn(SceneObject* object) {
 
 	lastSpawn.updateToCurrentTime();
 
-	if (exitObserver == NULL) {
+	if (exitObserver == nullptr) {
 		exitObserver = new SpawnAreaObserver(_this.getReferenceUnsafeStaticCast());
 		exitObserver->deploy();
 	}

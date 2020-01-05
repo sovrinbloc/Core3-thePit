@@ -138,7 +138,7 @@ public:
 		// evidence shows that this has a custom OOR message.
 		if (errorNumber == TOOFAR) {
 			creature->sendSystemMessage("@error_message:target_out_of_range"); //Your target is out of range for this action.
-			CombatSpam* spam = new CombatSpam(creature, NULL, creature, NULL, 0, "cbt_spam", "out_of_range", 10); // That target is out of range. (red)
+			CombatSpam* spam = new CombatSpam(creature, nullptr, creature, nullptr, 0, "cbt_spam", "out_of_range", 10); // That target is out of range. (red)
 			creature->sendMessage(spam);
 			QueueCommand::onFail(actioncntr, creature, GENERALERROR);
 		} else {
@@ -146,16 +146,16 @@ public:
 		}
 	}
 
-	int doCombatAction(CreatureObject* creature, const uint64& target, const UnicodeString& arguments = "", ManagedReference<WeaponObject*> weapon = NULL) const {
+	int doCombatAction(CreatureObject* creature, const uint64& target, const UnicodeString& arguments = "", ManagedReference<WeaponObject*> weapon = nullptr) const {
 		ManagedReference<SceneObject*> targetObject = server->getZoneServer()->getObject(target);
 
-		if (targetObject == NULL || !targetObject->isTangibleObject() || targetObject == creature)
+		if (targetObject == nullptr || !targetObject->isTangibleObject() || targetObject == creature)
 			return INVALIDTARGET;
 
 		float rangeToCheck = range;
 
-		if (weapon == NULL) {
-			if(creature->getWeapon() == NULL) {
+		if (weapon == nullptr) {
+			if(creature->getWeapon() == nullptr) {
 				return GENERALERROR;
 			}
 			else {
@@ -175,7 +175,7 @@ public:
 		if (creature->isPlayerCreature()) {
 			PlayerObject* ghost = creature->getPlayerObject();
 
-			if (ghost != NULL) {
+			if (ghost != nullptr) {
 				if (ghost->isOnLoadScreen())
 					ghost->setOnLoadScreen(false);
 
@@ -184,18 +184,18 @@ public:
 
 				ManagedReference<TangibleObject*> targetTano = targetObject.castTo<TangibleObject*>();
 
-				if (targetTano != NULL && creature->getFaction() != 0 && targetTano->getFaction() != 0 && targetTano->getFaction() != creature->getFaction() && creature->getFactionStatus() != FactionStatus::OVERT) {
+				if (targetTano != nullptr && creature->getFaction() != 0 && targetTano->getFaction() != 0 && targetTano->getFaction() != creature->getFaction() && creature->getFactionStatus() != FactionStatus::OVERT) {
 					if (targetTano->isCreatureObject()) {
 						ManagedReference<CreatureObject*> targetCreature = targetObject.castTo<CreatureObject*>();
 
-						if (targetCreature != NULL) {
+						if (targetCreature != nullptr) {
 							if (targetCreature->isPlayerCreature()) {
 								if (!CombatManager::instance()->areInDuel(creature, targetCreature) && !targetCreature->hasBountyMissionFor(creature) && !creature->hasBountyMissionFor(targetCreature) && targetCreature->getFactionStatus() == FactionStatus::OVERT)
 									ghost->doFieldFactionChange(FactionStatus::OVERT);
 							} else if (targetCreature->isPet()) {
 								ManagedReference<CreatureObject*> targetOwner = targetCreature->getLinkedCreature().get();
 
-								if (targetOwner != NULL && !creature->hasBountyMissionFor(targetOwner) && !targetOwner->hasBountyMissionFor(creature) && !CombatManager::instance()->areInDuel(creature, targetOwner) && targetOwner->getFactionStatus() == FactionStatus::OVERT) {
+								if (targetOwner != nullptr && !creature->hasBountyMissionFor(targetOwner) && !targetOwner->hasBountyMissionFor(creature) && !CombatManager::instance()->areInDuel(creature, targetOwner) && targetOwner->getFactionStatus() == FactionStatus::OVERT) {
 										ghost->doFieldFactionChange(FactionStatus::OVERT);
 								}
 							} else {
@@ -498,7 +498,8 @@ public:
 				return "creature_attack" + intensity;
 		}
 
-		//info("Generated Attack Animation- " + buffer.toString(), true);
+		debug() << "Generated Attack Animation- " << buffer;
+
 		return buffer.toString();
 	}
 
@@ -520,12 +521,13 @@ public:
 
 			return anim;
 		}
-		//info("Generated Attack Animation- " + anim, true);
+
+		debug() << "Generated Attack Animation- " << anim;
+
 		return anim;
 	}
 
 	virtual String getAnimation(TangibleObject* attacker, TangibleObject* defender, WeaponObject* weapon, uint8 hitLocation, int damage) const {
-
 		if (animation.isEmpty())
 			return getDefaultAttackAnimation(attacker, weapon, hitLocation, damage);
 
@@ -544,12 +546,12 @@ public:
 		return poolsToDamage;
 	}
 
-	inline VectorMap<uint8, StateEffect>* getStateEffects() const {
-		return &(const_cast<CombatQueueCommand*>(this)->stateEffects);
+	inline const VectorMap<uint8, StateEffect>* getStateEffects() const {
+		return &stateEffects;
 	}
 
-	inline Vector<DotEffect>* getDotEffects() const {
-		return &(const_cast<CombatQueueCommand*>(this)->dotEffects);
+	inline const Vector<DotEffect>* getDotEffects() const {
+		return &dotEffects;
 	}
 
 	void setAnimationString(const String& anim) {
@@ -620,11 +622,11 @@ public:
 		this->accuracySkillMod = acc;
 	}
 
-	bool hasCombatSpam() {
+	bool hasCombatSpam() const {
 		return !combatSpam.isEmpty();
 	}
 
-	bool isCombatCommand() {
+	bool isCombatCommand() const {
 		return true;
 	}
 
@@ -636,7 +638,7 @@ public:
 	virtual void applyEffect(CreatureObject* attacker, CreatureObject* defender, uint8 effectType, uint32 mod) const {
 		CombatManager* combatManager = CombatManager::instance();
 		StateEffect effect = getStateEffect(effectType);
-		Reference<Buff*> buff = NULL;
+		Reference<Buff*> buff = nullptr;
 
 		Vector<String> defenseMods = effect.getDefenderStateDefenseModifiers();
 		float targetDefense = 0.f;
@@ -781,7 +783,7 @@ public:
 
 	//Override for special cases (skills like Taunt that don't have 5 result strings)
 	virtual void sendAttackCombatSpam(TangibleObject* attacker, TangibleObject* defender, int attackResult, int damage, const CreatureAttackData& data) const {
-		if (attacker == NULL || defender == NULL)
+		if (attacker == nullptr || defender == nullptr)
 			return;
 
 		String stringName = data.getCombatSpam();
@@ -809,7 +811,7 @@ public:
 			break;
 		}
 
-		CombatManager::instance()->broadcastCombatSpam(attacker, defender, NULL, damage, "cbt_spam", stringName, color);
+		CombatManager::instance()->broadcastCombatSpam(attacker, defender, nullptr, damage, "cbt_spam", stringName, color);
 
 	}
 

@@ -10,7 +10,6 @@
 #include "server/zone/managers/crafting/schematicmap/SchematicMap.h"
 
 void XpPurchaseMenuComponent::fillObjectMenuResponse(SceneObject* sceneObject, ObjectMenuResponse* menuResponse, CreatureObject* player) const {
-
 	if (!sceneObject->isTangibleObject())
 		return;
 
@@ -18,7 +17,7 @@ void XpPurchaseMenuComponent::fillObjectMenuResponse(SceneObject* sceneObject, O
 
 	XpPurchaseTemplate* templateData = cast<XpPurchaseTemplate*>(sceneObject->getObjectTemplate());
 
-	if (templateData == NULL) {
+	if (templateData == nullptr) {
 		error("No XpPurchaseTemplate for: " + String::valueOf(sceneObject->getServerObjectCRC()));
 		return;
 	}
@@ -41,12 +40,12 @@ int XpPurchaseMenuComponent::handleObjectMenuSelect(SceneObject* sceneObject, Cr
 
 		Reference<PlayerObject*> ghost = player->getSlottedObject("ghost").castTo<PlayerObject*>();
 
-		if (ghost == NULL)
+		if (ghost == nullptr)
 			return 0;
 
 		XpPurchaseTemplate* templateData = cast<XpPurchaseTemplate*>(sceneObject->getObjectTemplate());
 
-		if (templateData == NULL) {
+		if (templateData == nullptr) {
 			error("No XpPurchaseTemplate for: " + String::valueOf(sceneObject->getServerObjectCRC()));
 			return 0;
 		}

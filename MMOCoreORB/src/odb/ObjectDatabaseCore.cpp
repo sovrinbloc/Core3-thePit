@@ -56,6 +56,8 @@ ObjectDatabaseCore::ObjectDatabaseCore(Vector<String> arguments, const char* eng
 }
 
 void ObjectDatabaseCore::initialize() {
+	using namespace sys::lang;
+
 	info("starting up ObjectDatabase..");
 
 	Core::initializeProperties("ODB3");
@@ -297,7 +299,7 @@ void ObjectDatabaseCore::startBackIteratorTask(ObjectDatabase* database, const S
 
 	staticLogger.info("back iterator2 enabled", true);
 
-	berkley::CursorConfig config;
+	berkeley::CursorConfig config;
 	config.setReadUncommitted(true);
 
 	auto taskManager = Core::getTaskManager();
@@ -598,7 +600,7 @@ void ObjectDatabaseCore::dumpDatabaseToJSON(const String& databaseName) {
 
 	const String& fileName = getArgument(3, database->getDatabaseFileName() + ".json");
 
-	berkley::CursorConfig config;
+	berkeley::CursorConfig config;
 	config.setReadUncommitted(true);
 
 	//forward iterator
@@ -617,7 +619,7 @@ void ObjectDatabaseCore::dumpDatabaseToJSON(const String& databaseName) {
 	int buffersize = Core::getIntProperty("ODB3.bulkBuffer", 5 * 1024 * 1024); //5MB
 	ArrayList<char> buffer(buffersize, buffersize / 2);
 
-	berkley::DatabaseEntry dataEntry;
+	berkeley::DatabaseEntry dataEntry;
 	dataEntry.setData(buffer.begin(), buffersize);
 
 	size_t retklen, retdlen;
@@ -644,7 +646,7 @@ void ObjectDatabaseCore::dumpDatabaseToJSON(const String& databaseName) {
 			for (DB_MULTIPLE_INIT(p, dataEntry.getDBT());;) {
 				DB_MULTIPLE_KEY_NEXT(p,
 						dataEntry.getDBT(), retkey, retklen, retdata, retdlen);
-				if (p == NULL)
+				if (p == nullptr)
 					break;
 
 				ObjectInputStream* data = new ObjectInputStream(retdlen);
@@ -713,8 +715,8 @@ ObjectDatabase* ObjectDatabaseCore::getDatabase(uint64_t objectID) {
 
 	LocalDatabase* db = databaseManager->getDatabase(tableID);
 
-	if (db == NULL || !db->isObjectDatabase())
-		return NULL;
+	if (db == nullptr || !db->isObjectDatabase())
+		return nullptr;
 
 	ObjectDatabase* database = static_cast<ObjectDatabase*>( db);
 

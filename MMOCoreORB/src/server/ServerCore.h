@@ -6,6 +6,9 @@
 #define SERVERCORE_H_
 
 #include "engine/engine.h"
+#include "system/lang/Function.h"
+#include "system/io/Pipe.h"
+
 #include "server/features/Features.h"
 
 namespace server {
@@ -17,6 +20,9 @@ namespace server {
 using namespace server::zone;
 
 #include "server/login/LoginServer.h"
+#ifdef WITH_SESSION_API
+#include "server/login/SessionAPIClient.h"
+#endif // WITH_SESSION_API
 #include "server/ping/PingServer.h"
 
 namespace conf {
@@ -29,15 +35,13 @@ class ServerDatabase;
 class MantisDatabase;
 class StatusServer;
 
+#ifdef WITH_REST_API
 namespace server {
- namespace web {
- 	 class WebServer;
- }
-
  namespace web3 {
  	class RESTServer;
  }
 }
+#endif // WITH_REST_API
 
 namespace engine {
 	namespace core {
@@ -45,62 +49,63 @@ namespace engine {
 	}
 }
 
-using namespace server::web;
-
 class ServerCore : public Core, public Logger {
+	Pipe consoleCommandPipe;
 	ConfigManager* configManager;
-
 	ServerDatabase* database;
-
 	MantisDatabase* mantisDatabase;
-
 	DistributedObjectBroker* orb;
-
-	ManagedReference<server::login::LoginServer*> loginServer;
-
+	Reference<server::login::LoginServer*> loginServer;
 	Reference<StatusServer*> statusServer;
-
 	server::features::Features* features;
-
 	Reference<PingServer*> pingServer;
-
-	WebServer* webServer;
-
 	MetricsManager* metricsManager;
-
+#ifdef WITH_REST_API
 	server::web3::RESTServer* restServer;
+#endif // WITH_REST_API
+#ifdef WITH_SESSION_API
+	Reference<server::login::SessionAPIClient*> sessionAPIClient;
+#endif // WITH_SESSION_API
 
 	Mutex shutdownBlockMutex;
 	Condition waitCondition;
 
-	static SortedVector<String> arguments;
+public:
+	enum CommandResult {
+		SUCCESS = 0,
+		ERROR = 1,
+		SHUTDOWN,
+		NOTFOUND
+	};
 
-	static ManagedReference<server::zone::ZoneServer*> zoneServerRef;
-
-	static bool truncateAllData;
-
-	static ServerCore* instance;
+private:
+	VectorMap<String, Function<CommandResult(const String& arguments)>> consoleCommands;
 
 	bool handleCmds;
 
+	static SortedVector<String> arguments;
+	static ManagedReference<server::zone::ZoneServer*> zoneServerRef;
+	static bool truncateAllData;
+	static ServerCore* instance;
+
+	void registerConsoleCommmands();
+	CommandResult processConsoleCommand(const String& commandString);
+
 public:
-	ServerCore(bool truncateDatabases, SortedVector<String>& args);
+	ServerCore(bool truncateDatabases, const SortedVector<String>& args);
 	~ServerCore();
 
 	void initialize() override;
+	void initializeCoreContext();
 
 	void finalizeContext() override;
-
-	void initializeCoreContext();
 
 	void run() override;
 
 	void shutdown();
-
+	void queueConsoleCommand(const String& commandString);
 	void handleCommands();
-
 	void processConfig();
-
 	void signalShutdown();
 
 	// getters
@@ -114,6 +119,10 @@ public:
 
 	static ServerCore* getInstance() {
 		return instance;
+	}
+
+	static Logger& logger() {
+		return *instance;
 	}
 
 	static bool hasArgument(const String& arg) {

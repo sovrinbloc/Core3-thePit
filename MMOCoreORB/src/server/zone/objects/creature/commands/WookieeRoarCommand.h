@@ -31,7 +31,7 @@ public:
 
 		Reference<TangibleObject*> targetObject = server->getZoneServer()->getObject(target).castTo<TangibleObject*>();
 
-		if (targetObject == NULL || !targetObject->isCreatureObject())
+		if (targetObject == nullptr || !targetObject->isCreatureObject())
 			return INVALIDTARGET;
 
 		Locker locker(targetObject, creature);
@@ -44,8 +44,7 @@ public:
 
 		// Check to see if "innate_roar" Cooldown isPast();
 		if (!player->checkCooldownRecovery("innate_roar")) {
-
-			Time* cdTime = player->getCooldownTime("innate_roar");
+			const Time* cdTime = player->getCooldownTime("innate_roar");
 
 			// Returns -time. Multiple by -1 to return positive.
 			int timeLeft = floor((float)cdTime->miliDifference() / 1000) * -1;
@@ -60,7 +59,7 @@ public:
 		int res = doCombatAction(creature, target);
 
 		if (res == TOOFAR) {
-			CombatManager::instance()->broadcastCombatSpam(creature, targetObject, NULL, 0, "cbt_spam", "wookiee_roar_out_of_range", 0);
+			CombatManager::instance()->broadcastCombatSpam(creature, targetObject, nullptr, 0, "cbt_spam", "wookiee_roar_out_of_range", 0);
 			return TOOFAR;
 		}
 

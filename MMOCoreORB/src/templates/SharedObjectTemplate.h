@@ -8,6 +8,8 @@
 #ifndef SHAREDOBJECTTEMPLATE_H_
 #define SHAREDOBJECTTEMPLATE_H_
 
+#include "engine/lua/Lua.h"
+
 #include "templates/LuaTemplate.h"
 #include "templates/IffTemplate.h"
 #include "templates/ChildObject.h"
@@ -23,7 +25,7 @@
 class PortalLayout;
 class AppearanceTemplate;
 
-class SharedObjectTemplate : public LuaTemplate, public IffTemplate {
+class SharedObjectTemplate : public LuaTemplate, public IffTemplate, public Logger {
 protected:
 	StringIdParam objectName;
 	StringIdParam detailedDescription;
@@ -63,8 +65,8 @@ protected:
 	//uint32 clientObjectCRC;
 	String clientTemplateFileName;
 
-	Reference<PlanetMapCategory*> planetMapCategory;
-	Reference<PlanetMapCategory*> planetMapSubCategory;
+	Reference<const PlanetMapCategory*> planetMapCategory;
+	Reference<const PlanetMapCategory*> planetMapSubCategory;
 	bool autoRegisterWithPlanetMap;
 
 	String fullTemplateString;
@@ -299,15 +301,15 @@ public:
 		return portalLayoutFilename.get();
 	}
 
-	PortalLayout* getPortalLayout();
+	const PortalLayout* getPortalLayout();
 	AppearanceTemplate* getAppearanceTemplate();
 
-	const Vector < Vector<String> >* getArrangementDescriptors() const {
-		if (arrangementDescriptors == NULL) {
+	const Vector <Vector<String>>& getArrangementDescriptors() const {
+		if (arrangementDescriptors == nullptr) {
 			const static Vector < Vector<String> > EMPTY_DESCRIPTORS;
-			return &EMPTY_DESCRIPTORS;
+			return EMPTY_DESCRIPTORS;
 		} else
-			return &arrangementDescriptors->getArrangementSlots();
+			return arrangementDescriptors->getArrangementSlots();
 	}
 
 	/*inline Vector<float>* getScale() {
@@ -339,8 +341,8 @@ public:
 	}
 
 	inline const Vector<String>* getSlotDescriptors() const {
-		if (slotDescriptors == NULL)
-			return NULL;
+		if (slotDescriptors == nullptr)
+			return nullptr;
 		else
 			return slotDescriptors->getSlots();
 	}
@@ -401,11 +403,11 @@ public:
 		return attributeListComponent;
 	}
 
-	inline PlanetMapCategory* getPlanetMapCategory() const {
+	inline const PlanetMapCategory* getPlanetMapCategory() const {
 		return planetMapCategory;
 	}
 
-	inline PlanetMapCategory* getPlanetMapSubCategory() const {
+	inline const PlanetMapCategory* getPlanetMapSubCategory() const {
 		return planetMapSubCategory;
 	}
 
@@ -417,7 +419,7 @@ public:
 		return childObjects.size();
 	}
 
-	inline ChildObject* getChildObject(int idx) const {
+	inline const ChildObject* getChildObject(int idx) const {
 		return &childObjects.get(idx);
 	}
 
@@ -430,17 +432,17 @@ public:
 	}
 
 	bool hasArrangementDescriptor(const String& s) const {
-		bool foundIt = false;
+		const auto& hAD = getArrangementDescriptors();
 
-		const Vector < Vector <String> >* hAD = getArrangementDescriptors();
+		for (int i = 0; i < hAD.size(); ++i) {
+			const auto& slotItems = hAD.get(i);
 
-		for (int i = 0; i < hAD->size() && !foundIt; ++i) {
-			Vector <String>& slotItems = hAD->get(i);
-
-			foundIt = slotItems.contains(s);
+			if (slotItems.contains(s)) {
+				return true;
+			}
 		}
 
-		return foundIt;
+		return false;
 	}
 
 	bool getDelayedContainerLoad() const {
@@ -448,7 +450,7 @@ public:
 	}
 
 public:
-	void setAppearanceFilename(String appearanceFilename) {
+	void setAppearanceFilename(const String& appearanceFilename) {
 		this->appearanceFilename = appearanceFilename;
 	}
 
@@ -456,7 +458,7 @@ public:
 		this->clearFloraRadius = clearFloraRadius;
 	}
 
-	void setClientDataFile(String clientDataFile) {
+	void setClientDataFile(const String& clientDataFile) {
 		this->clientDataFile = clientDataFile;
 	}
 
@@ -504,7 +506,7 @@ public:
 		this->locationReservationRadius = locationReservationRadius;
 	}
 
-	void setLookAtText(String lookAtText) {
+	void setLookAtText(const String& lookAtText) {
 		this->lookAtText = lookAtText;
 	}
 
@@ -512,7 +514,7 @@ public:
 		this->noBuildRadius = noBuildRadius;
 	}
 
-	void setObjectName(String objectName) {
+	void setObjectName(const String& objectName) {
 		this->objectName = objectName;
 	}
 
@@ -520,7 +522,7 @@ public:
 		this->onlyVisibleInTools = onlyVisibleInTools;
 	}
 
-	void setPortalLayoutFilename(String portalLayoutFilename) {
+	void setPortalLayoutFilename(const String& portalLayoutFilename) {
 		this->portalLayoutFilename = portalLayoutFilename;
 	}
 
@@ -552,7 +554,7 @@ public:
 		this->surfaceType = surfaceType;
 	}
 
-	void setTintPallete(String tintPallete) {
+	void setTintPallete(const String& tintPallete) {
 		this->tintPallete = tintPallete;
 	}
 
@@ -566,6 +568,8 @@ public:
 
 	void setTemplateFileName(const String& str) {
 		templateFileName = str;
+
+		Logger::setLoggingName("SharedObjectTemplate " + templateFileName);
 	}
 
 public:
@@ -573,7 +577,7 @@ public:
 		return false;
 	}
 
-	virtual bool isSharedTangibleObjectTemplate() {
+	virtual bool isSharedTangibleObjectTemplate() const {
 		return false;
 	}
 
@@ -657,7 +661,7 @@ public:
 		return false;
 	}
 
-	virtual bool isInstrumentObjectTemplate() {
+	virtual bool isInstrumentObjectTemplate() const {
 		return false;
 	}
 
@@ -681,11 +685,11 @@ public:
 		return false;
 	}
 
-	virtual bool isCreatureHabitatTemplate() {
+	virtual bool isCreatureHabitatTemplate() const {
 		return false;
 	}
 
-	virtual bool isRepairToolTemplate() {
+	virtual bool isRepairToolTemplate() const {
 		return false;
 	}
 
@@ -697,7 +701,7 @@ public:
 		return false;
 	}
 
-	virtual bool isRecycleToolTemplate() {
+	virtual bool isRecycleToolTemplate() const {
 	    	return false;
 	}
 
@@ -733,11 +737,11 @@ public:
 		return false;
 	}
 
-	virtual bool isPlayerCreatureTemplate() {
+	virtual bool isPlayerCreatureTemplate() const {
 		return false;
 	}
 
-	virtual bool isCraftingStationTemplate() {
+	virtual bool isCraftingStationTemplate() const {
 		return false;
 	}
 

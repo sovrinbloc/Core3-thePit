@@ -17,20 +17,20 @@ DroidPersonalityModuleDataComponent::~DroidPersonalityModuleDataComponent() {
 
 }
 
-String DroidPersonalityModuleDataComponent::getModuleName() {
+String DroidPersonalityModuleDataComponent::getModuleName() const {
 	return "personality_chip";
 }
 
 void DroidPersonalityModuleDataComponent::initializeTransientMembers() {
 	// load template data here
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent == NULL) {
+	if (droidComponent == nullptr) {
 		info("droidComponent was null");
 		return;
 	}
 
 	Reference<DroidPersonalityModuleTemplate*> moduleTemplate = cast<DroidPersonalityModuleTemplate*>(droidComponent->getObjectTemplate());
-	if (moduleTemplate == NULL) {
+	if (moduleTemplate == nullptr) {
 		info("Module was null");
 		return;
 	}
@@ -62,13 +62,13 @@ void DroidPersonalityModuleDataComponent::deactivate() {
 	// no op
 }
 
-String DroidPersonalityModuleDataComponent::toString() {
+String DroidPersonalityModuleDataComponent::toString() const {
 	return BaseDroidModuleComponent::toString();
 }
 
 void DroidPersonalityModuleDataComponent::onCall() {
 	ManagedReference<DroidObject*> droid = getDroidObject();
-	if (droid == NULL) {
+	if (droid == nullptr) {
 		info("Droid is null");
 		return;
 	}
@@ -79,7 +79,7 @@ void DroidPersonalityModuleDataComponent::onCall() {
 		droid->clearOptionBit(OptionBitmask::CONVERSE, true);
 	}
 
-	if (observer == NULL) {
+	if (observer == nullptr) {
 		observer = new DroidPersonalityObserver(this);
 		observer->deploy();
 	}
@@ -93,12 +93,12 @@ void DroidPersonalityModuleDataComponent::onCall() {
 
 void DroidPersonalityModuleDataComponent::onStore() {
 	ManagedReference<DroidObject*> droid = getDroidObject();
-	if (droid == NULL) {
+	if (droid == nullptr) {
 		info("Droid is null");
 		return;
 	}
 
-	if (observer == NULL) {
+	if (observer == nullptr) {
 		info("bad observer");
 		return;
 	}
@@ -125,7 +125,7 @@ void DroidPersonalityModuleDataComponent::quip(String m,DroidObject* droid) {
 
 void DroidPersonalityModuleDataComponent::notifyEvent(unsigned int eventType, ManagedObject* arg1, int64 arg2, bool forced) {
 	ManagedReference<DroidObject*> droid = getDroidObject();
-	if (droid == NULL) {
+	if (droid == nullptr) {
 		info("Droid is null");
 		return;
 	}

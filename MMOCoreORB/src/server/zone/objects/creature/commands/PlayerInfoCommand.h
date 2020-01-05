@@ -29,7 +29,7 @@ public:
 			targetObject = creature->getZoneServer()->getObject(creature->getTargetID()).castTo<CreatureObject*>();
 		}
 
-		if (targetObject == NULL || !targetObject->isPlayerCreature()) {
+		if (targetObject == nullptr || !targetObject->isPlayerCreature()) {
 			targetObject = creature;
 		}
 
@@ -49,7 +49,7 @@ public:
 		promptText << "Name: " << targetObject->getCustomObjectName().toString()  << endl;
 		promptText << "ObjectID: " << targetObject->getObjectID() << endl;
 
-		if (ghost != NULL) {
+		if (ghost != nullptr) {
 			promptText << "Online Status: ";
 
 			if(ghost->isOnline())
@@ -109,26 +109,26 @@ public:
 
 		promptText << endl << "Level: " << targetObject->getLevel() << endl;
 
-		if (ghost != NULL) {
+		if (ghost != nullptr) {
 			promptText << "totalSkillPointsWasted = " << totalSkillPointsWasted << " skillPoints var:" << ghost->getSkillPoints() << endl;
 
 			promptText << endl << "Ability list:" << endl;
 
-			AbilityList* abilityList = ghost->getAbilityList();
+			const AbilityList* abilityList = ghost->getAbilityList();
 
 			for (int i = 0; i < abilityList->size(); ++i) {
-				Ability* skill = abilityList->get(i);
+				const Ability* skill = abilityList->get(i);
 				promptText << skill->getAbilityName() << endl;
 			}
 
 			if (creature->getPlayerObject()->getAdminLevel() >= 15) {
-				Vector<byte>* holoProfessions = ghost->getHologrindProfessions();
+				const Vector<byte>* holoProfessions = ghost->getHologrindProfessions();
 
 				promptText << endl;
 				promptText << "Hologrind professions:\n";
 
-				BadgeList* badgeList = BadgeList::instance();
-				if (badgeList != NULL) {
+				const BadgeList* badgeList = BadgeList::instance();
+				if (badgeList != nullptr) {
 					for (int i = 0; i < holoProfessions->size(); ++i) {
 						byte prof = holoProfessions->get(i);
 						const Badge* badge = badgeList->get(prof);
@@ -144,31 +144,29 @@ public:
 				promptText << endl << "Visibility = " << ghost->getVisibility() << endl;
 
 				MissionManager* missionManager = creature->getZoneServer()->getMissionManager();
-				Vector<uint64>* hunterList =  missionManager->getHuntersHuntingTarget(targetObject->getObjectID());
+				Vector<uint64> hunterList =  missionManager->getHuntersHuntingTarget(targetObject->getObjectID());
 
-				if (hunterList != NULL) {
-					for (int i = 0; i < hunterList->size(); i++) {
-						promptText << "Hunter #" << i << ": " << hunterList->get(i) << endl;
-					}
+				for (int i = 0; i < hunterList.size(); i++) {
+					promptText << "Hunter #" << i << ": " << hunterList.get(i) << endl;
 				}
 
 				promptText << endl;
 			}
 		} else {
-			promptText << "ERROR: PlayerObject NULL" << endl;
+			promptText << "ERROR: PlayerObject nullptr" << endl;
 		}
 
 		ManagedReference<SceneObject*> inventory = targetObject->getSlottedObject("inventory");
 		ManagedReference<SceneObject*> bank = targetObject->getSlottedObject("bank");
 		ManagedReference<SceneObject*> datapad = targetObject->getSlottedObject("datapad");
 
-		promptText << "Inventory: " << (inventory == NULL ? String("NULL") : String::valueOf(inventory->getObjectID()));
+		promptText << "Inventory: " << (inventory == nullptr ? String("nullptr") : String::valueOf(inventory->getObjectID()));
 		promptText << endl;
 
-		promptText << "Bank: " << (bank == NULL ? String("NULL") : String::valueOf(bank->getObjectID()));
+		promptText << "Bank: " << (bank == nullptr ? String("nullptr") : String::valueOf(bank->getObjectID()));
 		promptText << endl;
 
-		promptText << "Datapad: " << (datapad == NULL ? String("NULL") : String::valueOf(datapad->getObjectID()));
+		promptText << "Datapad: " << (datapad == nullptr ? String("nullptr") : String::valueOf(datapad->getObjectID()));
 		promptText << endl;
 
 

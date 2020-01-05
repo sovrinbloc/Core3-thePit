@@ -16,11 +16,11 @@ void StringIdManager::populateDatabase() {
 	int count = 0;
 
 	TemplateManager::instance();
-	TreeArchive* treeArchive = DataArchiveStore::instance()->getTreeArchive();
+	const TreeArchive* treeArchive = DataArchiveStore::instance()->getTreeArchive();
 
 	Vector<String>* files = treeArchive->getFilesAndSubDirectoryFiles("string/en");
 
-	if (files == NULL) {
+	if (files == nullptr) {
 		error("string/en directory missing");
 
 		ObjectDatabaseManager::instance()->commitLocalTransaction();
@@ -32,13 +32,13 @@ void StringIdManager::populateDatabase() {
 
 		ObjectInputStream* stream = TemplateManager::instance()->openTreFile(files->get(i));
 
-		if (stream == NULL) {
-			//error("could not open file " + files->get(i));
+		if (stream == nullptr) {
+			debug() << "could not open file " << files->get(i);
 
 			continue;
 		} else {
 			if (stream->size() > 4) {
-				//info("opening " + files->get(i), true);
+				debug() << "opening " << files->get(i);
 
 				StringFile stringFile;
 				if (!stringFile.load(stream)) {
@@ -51,7 +51,7 @@ void StringIdManager::populateDatabase() {
 				file = file.replaceFirst("string/en/","");
 				file = file.replaceFirst(".stf","");
 
-				HashTable<String, UnicodeString>* hashTable = stringFile.getStringMap();
+				const HashTable<String, UnicodeString>* hashTable = stringFile.getStringMap();
 
 				HashTableIterator<String, UnicodeString> iterator = hashTable->iterator();
 
@@ -63,7 +63,7 @@ void StringIdManager::populateDatabase() {
 
 					String full = "@" + file + ":" + name;
 
-					//info("key = " + full + " value = " + value.toString(), true);
+					debug() << "key = " << full << " value = " << value;
 
 					ObjectOutputStream* data = new ObjectOutputStream();
 					value.toBinaryStream(data);
