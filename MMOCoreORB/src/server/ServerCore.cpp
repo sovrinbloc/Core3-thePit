@@ -6,15 +6,19 @@
 
 #include <type_traits>
 
+#include "db/MySqlDatabase.h"
 #include "db/ServerDatabase.h"
 #include "db/MantisDatabase.h"
 
 #include "server/chat/ChatManager.h"
 #include "server/login/LoginServer.h"
-#include "features/Features.h"
+#include "system/lang/SignalException.h"
+#ifdef WITH_SESSION_API
+#include "server/login/SessionAPIClient.h"
+#endif // WITH_SESSION_API
 #include "ping/PingServer.h"
 #include "status/StatusServer.h"
-#include "web/WebServer.h"
+#include "web/RESTServer.h"
 #include "server/zone/ZoneServer.h"
 
 #include "server/zone/managers/object/ObjectManager.h"
@@ -22,43 +26,479 @@
 #include "server/zone/managers/player/PlayerManager.h"
 #include "server/zone/managers/director/DirectorManager.h"
 #include "server/zone/managers/collision/NavMeshManager.h"
+#include "server/zone/managers/name/NameManager.h"
+#include "server/zone/managers/frs/FrsManager.h"
 
-#include "engine/util/u3d/QuadTree.h"
+#include "server/zone/QuadTree.h"
 
 #include "engine/core/MetricsManager.h"
+#include "engine/service/ServiceThread.h"
 
-ManagedReference<ZoneServer*> ServerCore::zoneServerRef = NULL;
+ManagedReference<ZoneServer*> ServerCore::zoneServerRef = nullptr;
 SortedVector<String> ServerCore::arguments;
 bool ServerCore::truncateAllData = false;
-ServerCore* ServerCore::instance = NULL;
+ServerCore* ServerCore::instance = nullptr;
 
-ServerCore::ServerCore(bool truncateDatabases, SortedVector<String>& args) :
-		Core("log/core3.log"), Logger("Core") {
-	orb = NULL;
+namespace coredetail {
+	class ConsoleReaderService final : public ServiceThread {
+		ServerCore* core;
 
-	loginServer = NULL;
-	zoneServerRef = NULL;
-	statusServer = NULL;
-	pingServer = NULL;
-	webServer = NULL;
-	database = NULL;
-	mantisDatabase = NULL;
+	public:
+		ConsoleReaderService(ServerCore* serverCoreInstance);
+
+		bool inputAvailable() const;
+
+		void run() override;
+	};
+
+#ifdef PLATFORM_WIN
+	static const char* EngineConfigName = "core3engine_windows";
+#else
+	static const char* EngineConfigName = "core3engine";
+#endif
+}
+
+ServerCore::ServerCore(bool truncateDatabases, const SortedVector<String>& args) :
+		Core("log/core3.log", coredetail::EngineConfigName, LogLevel::LOG), Logger("Core") {
+	orb = nullptr;
+
+	loginServer = nullptr;
+	zoneServerRef = nullptr;
+	statusServer = nullptr;
+	pingServer = nullptr;
+	database = nullptr;
+	mantisDatabase = nullptr;
+#ifdef WITH_REST_API
+	restServer = nullptr;
+#endif // WITH_REST_API
+#if WITH_SESSION_API
+	sessionAPIClient = nullptr;
+#endif // WITH_SESSION_API
 
 	truncateAllData = truncateDatabases;
 	arguments = args;
 
 	instance = this;
 
+	setLogLevel(Logger::INFO);
+
 	configManager = ConfigManager::instance();
 	metricsManager = MetricsManager::instance();
 
-	features = NULL;
+	features = nullptr;
 
 	handleCmds = true;
+
+	initializeCoreContext();
+}
+
+void ServerCore::registerConsoleCommmands() {
+	debug() << "registering console commands...";
+
+	consoleCommands.setNoDuplicateInsertPlan();
+
+	const auto addCommand = [this](auto name, auto lambda) {
+		consoleCommands.put(name, lambda);
+	};
+
+	addCommand("exit", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr) {
+			ChatManager* chatManager = zoneServer->getChatManager();
+			chatManager->broadcastGalaxy(nullptr,
+					"Server is shutting down NOW!");
+		}
+
+		return SHUTDOWN;
+	});
+
+	addCommand("logQuadTree", [this](const String& arguments) -> CommandResult {
+		QuadTree::setLogging(!QuadTree::doLog());
+
+		return SUCCESS;
+	});
+
+	addCommand("info", [this](const String& arguments) -> CommandResult {
+		//TaskManager::instance()->printInfo();
+
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (loginServer != nullptr)
+			loginServer->printInfo();
+
+		if (zoneServer != nullptr)
+			zoneServer->printInfo();
+
+		if (pingServer != nullptr)
+			pingServer->printInfo();
+
+		return SUCCESS;
+	});
+
+	addCommand("lock", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr)
+			zoneServer->setServerStateLocked();
+
+		return SUCCESS;
+	});
+
+	addCommand("unlock", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr)
+			zoneServer->setServerStateOnline();
+
+		return SUCCESS;
+	});
+
+	addCommand("icap", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr)
+			zoneServer->changeUserCap(50);
+
+		return SUCCESS;
+	});
+
+	addCommand("dcap", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr)
+			zoneServer->changeUserCap(-50);
+
+		return SUCCESS;
+	});
+
+	addCommand("fixQueue", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr)
+			zoneServer->fixScheduler();
+
+		return SUCCESS;
+	});
+
+	addCommand("save", [this](const String& arguments) -> CommandResult {
+		bool forceFull = !arguments.contains("delta");
+
+		ObjectManager::instance()->createBackup(forceFull);
+
+		return SUCCESS;
+	});
+
+	addCommand("help", [this](const String& arguments) -> CommandResult {
+		System::out << "available commands: ";
+
+		for (const auto& entry : consoleCommands) {
+			System::out << entry.getKey() << "  ";
+		}
+
+		System::out << endl;
+
+		return SUCCESS;
+	});
+
+	addCommand("chars", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+		uint32 num = 0;
+
+		try {
+			num = UnsignedInteger::valueOf(arguments);
+		} catch (const Exception& e) {
+			System::out << "invalid noumber of concurrent chars per account specified" << endl;
+
+			return ERROR;
+		}
+
+		if (num != 0) {
+			PlayerManager* pMan = zoneServer->getPlayerManager();
+			pMan->setOnlineCharactersPerAccount(num);
+
+			System::out << "changed max concurrent chars per account to: " << num << endl;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("lookupcrc", [this](const String& arguments) -> CommandResult {
+		uint32 crc = 0;
+		try {
+			crc = UnsignedInteger::valueOf(arguments);
+		} catch (const Exception& e) {
+			System::out << "invalid crc number expected dec";
+
+			return ERROR;
+		}
+
+		if (crc != 0) {
+			String file = TemplateManager::instance()->getTemplateFile(
+					crc);
+
+			System::out << "result: " << file << endl;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("loglevel", [this](const String& arguments) -> CommandResult {
+		int level = 0;
+		try {
+			level = Integer::valueOf(arguments);
+		} catch (const Exception& e) {
+			System::out << "invalid log level" << endl;
+
+			return ERROR;
+		}
+
+		if (level >= Logger::NONE && level <= Logger::DEBUG) {
+			Logger::setGlobalFileLogLevel(static_cast<Logger::LogLevel>(level));
+
+			System::out << "global log level changed to: " << level << endl;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("rev", [this](const String& arguments) -> CommandResult {
+		System::out << ConfigManager::instance()->getRevision() << endl;
+
+		return SUCCESS;
+	});
+
+	addCommand("broadcast", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServer != nullptr) {
+			ChatManager* chatManager = zoneServer->getChatManager();
+			chatManager->broadcastGalaxy(nullptr, arguments);
+			info(true) << "Console broadcasted: " << arguments;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("shutdown", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+		int minutes = 1;
+
+		try {
+			minutes = UnsignedInteger::valueOf(arguments);
+		} catch (const Exception& e) {
+			System::out << "invalid minutes number expected dec" << endl;
+
+			return ERROR;
+		}
+
+		if (zoneServer != nullptr) {
+			zoneServer->timedShutdown(minutes);
+
+			shutdownBlockMutex.lock();
+
+			waitCondition.wait(&shutdownBlockMutex);
+
+			shutdownBlockMutex.unlock();
+		}
+
+		return SHUTDOWN;
+	});
+
+	addCommand("playercleanup", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServerRef != nullptr) {
+			ZoneServer* server = zoneServerRef.get();
+
+			if (server != nullptr)
+				server->getPlayerManager()->cleanupCharacters();
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("playercleanupstats", [this](const String& arguments) -> CommandResult {
+		ZoneServer* zoneServer = zoneServerRef.getForUpdate();
+
+		if (zoneServerRef != nullptr) {
+			ZoneServer* server = zoneServerRef.get();
+
+			if (server != nullptr)
+				server->getPlayerManager()->getCleanupCharacterCount();
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("test", [this](const String& arguments) -> CommandResult {
+		Lua* lua = DirectorManager::instance()->getLuaInstance();
+
+		// create the lua function
+		UniqueReference<LuaFunction*> func(lua->createFunction("Tests", arguments, 0));
+		func->callFunction();
+
+		return SUCCESS;
+	});
+
+	addCommand("reloadscreenplays", [this](const String& arguments) -> CommandResult {
+		DirectorManager::instance()->reloadScreenPlays();
+
+		return SUCCESS;
+	});
+
+	addCommand("reloadmanager", [this](const String& arguments) -> CommandResult {
+		if (arguments == "name") {
+			ZoneServer* server = zoneServerRef.get();
+
+			if (server != nullptr)
+				server->getNameManager()->loadConfigData(true);
+		} else {
+			System::out << "Invalid manager. Reloadable managers: name" << endl;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("clearstats", [this](const String& arguments) -> CommandResult {
+		Core::getTaskManager()->clearWorkersTaskStats();
+
+		return SUCCESS;
+	});
+
+#ifdef COLLECT_TASKSTATISTICS
+	addCommand("statsd", [this](const String& arguments) -> CommandResult {
+		StringTokenizer argTokenizer(arguments);
+
+		argTokenizer.setDelimiter(" ");
+
+		String address;
+		int port = 0;
+
+		if (argTokenizer.hasMoreTokens())
+			argTokenizer.getStringToken(address);
+
+		if (argTokenizer.hasMoreTokens())
+			port = argTokenizer.getIntToken();
+
+		if (port) {
+			MetricsManager::instance()->initializeStatsDConnection(address.toCharArray(), port);
+
+			System::out << "metrics manager connection set to" << address << ":" << port << endl;
+		} else {
+			System::out << "invalid port or address" << endl;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("samplerate", [this](const String& arguments) -> CommandResult {
+		try {
+			int rate = UnsignedInteger::valueOf(arguments);
+
+			Core::getTaskManager()->setStatsDTaskSampling(rate);
+
+			System::out << "statsd sampling rate changed to " << rate << endl;
+		} catch (const Exception& e) {
+			System::out << "invalid statsd sampling rate" << endl;
+
+			return ERROR;
+		}
+
+		return SUCCESS;
+	});
+
+	addCommand("sampleratedb", [this](const String& arguments) -> CommandResult {
+		try {
+			int rate = UnsignedInteger::valueOf(arguments);
+
+			Core::getTaskManager()->setStatsDBdbSamplingRate(rate);
+
+			System::out << "statsd berkeley db sampling rate changed to " << rate << endl;
+		} catch (const Exception& e) {
+			System::out << "invalid statsd sampling rate" << endl;
+
+			return ERROR;
+		}
+
+		return SUCCESS;
+	});
+#endif
+	const auto pvpModeLambda = [this](const String& arguments) -> CommandResult {
+		System::out << "PvpMode = " << ConfigManager::instance()->getPvpMode() << endl;
+
+		return SUCCESS;
+	};
+
+	addCommand("getpvpmode", pvpModeLambda);
+	addCommand("getpvp", pvpModeLambda);
+
+	const auto setPvpModeLambda = [this](const String& arguments) -> CommandResult {
+		int num;
+
+		try {
+			if (arguments == "on") {
+				num = 1;
+			} else if (arguments == "off") {
+				num = 0;
+			} else {
+				num = UnsignedInteger::valueOf(arguments);
+			}
+
+			if (num == 1) {
+				ConfigManager::instance()->setPvpMode(true);
+			} else {
+				ConfigManager::instance()->setPvpMode(false);
+			}
+
+			info(true) << "console set new PvpMode = " << ConfigManager::instance()->getPvpMode();
+		} catch (const Exception& e) {
+			System::out << "invalid PvpMode: (0=off; 1=on)" << endl;
+
+			return ERROR;
+		}
+
+		return SUCCESS;
+	};
+
+	addCommand("setpvpmode", setPvpModeLambda);
+	addCommand("setpvp", setPvpModeLambda);
+
+	const auto dumpConfigLambda = [this](const String& arguments) -> CommandResult {
+		ConfigManager::instance()->dumpConfig(arguments == "all");
+
+		return SUCCESS;
+	};
+
+	addCommand("dumpcfg", dumpConfigLambda);
+	addCommand("dumpconfig", dumpConfigLambda);
+
+#ifdef WITH_SESSION_API
+	const auto sessionApiLambda = [this](const String& arguments) -> CommandResult {
+		return SessionAPIClient::instance()->consoleCommand(arguments) ? SUCCESS : ERROR;
+	};
+
+	addCommand("sessions", sessionApiLambda);
+	addCommand("sessionapi", sessionApiLambda);
+#endif // WITH_SESSION_API
+
+	addCommand("toggleModifiedObjectsDump", [this](const String& arguments) -> CommandResult {
+		DOBObjectManager::setDumpLastModifiedTraces(!DOBObjectManager::getDumpLastModifiedTraces());
+
+		System::out << "dump last modified traces set to " << DOBObjectManager::getDumpLastModifiedTraces();
+
+		return SUCCESS;
+	});
+
+	debug() << "registered " << consoleCommands.size() << " console commands.";
+}
+
+ServerCore::~ServerCore() {
+	finalizeContext();
 }
 
 class ZoneStatisticsTask: public Task {
-	ManagedReference<ZoneServer*> zoneServer;
+	Reference<ZoneServer*> zoneServer;
 
 public:
 	ZoneStatisticsTask(ZoneServer* server) {
@@ -70,6 +510,27 @@ public:
 	}
 };
 
+void ServerCore::finalizeContext() {
+	server::db::mysql::MySqlDatabase::finalizeLibrary();
+}
+
+void ServerCore::initializeCoreContext() {
+	server::db::mysql::MySqlDatabase::initializeLibrary();
+
+	class ThreadHook : public ThreadInitializer {
+	public:
+		void onThreadStart(Thread* thread) final {
+			server::db::mysql::MySqlDatabase::onThreadStart();
+		}
+
+		void onThreadEnd(Thread* thread) final {
+			server::db::mysql::MySqlDatabase::onThreadEnd();
+		}
+	};
+
+	Thread::setThreadInitializer(new ThreadHook());
+}
+
 void ServerCore::signalShutdown() {
 	shutdownBlockMutex.lock();
 
@@ -79,12 +540,17 @@ void ServerCore::signalShutdown() {
 }
 
 void ServerCore::initialize() {
-	info("starting up server..");
+	info(true) << "Server start, pid: "
+		<< Thread::getProcessID() << ", time: " << Time().getFormattedTime();
 
 	processConfig();
 
-	Logger::setGlobalFileLogger(configManager->getLogFile());
+	Logger::setGlobalFileLogger(configManager->getLogFile(), configManager->getRotateLogSizeMB(), configManager->getRotateLogAtStart());
+	Logger::setGlobalFileJson(configManager->getJsonLogOutput());
+	Logger::setGlobalFileLoggerSync(configManager->getSyncLogOutput());
 	Logger::setGlobalFileLogLevel(static_cast<Logger::LogLevel>(configManager->getLogFileLevel()));
+
+	registerConsoleCommmands();
 
 	try {
 		ObjectManager* objectManager = ObjectManager::instance();
@@ -95,15 +561,12 @@ void ServerCore::initialize() {
 
 		const String& orbaddr = configManager->getORBNamingDirectoryAddress();
 		orb = DistributedObjectBroker::initialize(orbaddr,
-//				DistributedObjectBroker::NAMING_DIRECTORY_PORT);
 				configManager->getORBNamingDirectoryPort());
 
 		orb->setCustomObjectManager(objectManager);
 
-		StringBuffer metricsMsg;
-		metricsMsg << "METRICS: " << String::valueOf(configManager->shouldUseMetrics()) << " " << configManager->getMetricsHost() << " " << String::valueOf(configManager->getMetricsPort()) << endl;
-
-		info(metricsMsg, true);
+		info() << "MetricsServer: " << configManager->shouldUseMetrics()
+			<< " " << configManager->getMetricsHost() << " " << configManager->getMetricsPort();
 
 		if (configManager->shouldUseMetrics()) {
 			metricsManager->setGlobalPrefix(configManager->getMetricsPrefix());
@@ -115,6 +578,7 @@ void ServerCore::initialize() {
 		if (configManager->getMakeLogin()) {
 			loginServer = new LoginServer(configManager);
 			loginServer->deploy("LoginServer");
+			database->instance()->executeStatement("TRUNCATE TABLE sessions");
 		}
 
 		if (configManager->getMakeZone()) {
@@ -132,21 +596,28 @@ void ServerCore::initialize() {
 			statusServer = new StatusServer(configManager, zoneServerRef);
 		}
 
-		if (configManager->getMakeWeb()) {
-			webServer = WebServer::instance();
+#ifdef WITH_REST_API
+		restServer = new server::web3::RESTServer();
+		restServer->start();
+#endif // WITH_REST_API
+
+#if WITH_SESSION_API
+		if (ConfigManager::instance()->getString("Core3.Login.API.BaseURL", "").length() > 0) {
+			sessionAPIClient = SessionAPIClient::instance();
 		}
+#endif // WITH_SESSION_API
 
 		ZoneServer* zoneServer = zoneServerRef.get();
 
 		NavMeshManager::instance()->initialize(configManager->getMaxNavMeshJobs(), zoneServer);
 
-		if (zoneServer != NULL) {
+		if (zoneServer != nullptr) {
 			int zonePort = configManager->getZoneServerPort();
 
 			int zoneAllowedConnections =
 					configManager->getZoneAllowedConnections();
 
-			if (arguments.contains("deleteNavMeshes") && zoneServer != NULL) {
+			if (arguments.contains("deleteNavMeshes") && zoneServer != nullptr) {
 				zoneServer->setShouldDeleteNavAreas(true);
 			}
 
@@ -158,32 +629,26 @@ void ServerCore::initialize() {
 
 			try {
 				if (zonePort == 0) {
-					String query = "SELECT port FROM galaxy WHERE galaxy_id = "
+					const String query = "SELECT port FROM galaxy WHERE galaxy_id = "
 								   + String::valueOf(galaxyID);
-					Reference < ResultSet * > result =
-							database->instance()->executeQuery(query);
+					UniqueReference<ResultSet*> result(database->instance()->executeQuery(query));
 
-					if (result != NULL && result->next()) {
+					if (result != nullptr && result->next()) {
 						zonePort = result->getInt(0);
 					}
 				}
 
 				database->instance()->executeStatement(
-						"TRUNCATE TABLE sessions");
-
-				database->instance()->executeStatement(
 						"DELETE FROM characters_dirty WHERE galaxy_id = "
 						+ String::valueOf(galaxyID));
-			} catch (DatabaseException &e) {
-				error(e.getMessage());
-
-				exit(1);
+			} catch (const DatabaseException &e) {
+				fatal(e.getMessage());
 			}
 
 			zoneServer->start(zonePort, zoneAllowedConnections);
 		}
 
-		if (statusServer != NULL) {
+		if (statusServer != nullptr) {
 			int statusPort = configManager->getStatusPort();
 			int statusAllowedConnections =
 					configManager->getStatusAllowedConnections();
@@ -191,11 +656,7 @@ void ServerCore::initialize() {
 			statusServer->start(statusPort, statusAllowedConnections);
 		}
 
-		if (webServer != NULL) {
-			webServer->start(configManager);
-		}
-
-		if (pingServer != NULL) {
+		if (pingServer != nullptr) {
 			int pingPort = configManager->getPingPort();
 			int pingAllowedConnections =
 					configManager->getPingAllowedConnections();
@@ -203,7 +664,7 @@ void ServerCore::initialize() {
 			pingServer->start(pingPort, pingAllowedConnections);
 		}
 
-		if (loginServer != NULL) {
+		if (loginServer != nullptr) {
 			int loginPort = configManager->getLoginPort();
 			int loginAllowedConnections =
 					configManager->getLoginAllowedConnections();
@@ -211,33 +672,36 @@ void ServerCore::initialize() {
 			loginServer->start(loginPort, loginAllowedConnections);
 		}
 
-#ifndef WITH_STM
 		ObjectManager::instance()->scheduleUpdateToDatabase();
-#else
-		Task* statiscticsTask = new ZoneStatisticsTask(zoneServerRef);
-		statiscticsTask->schedulePeriodic(10000, 10000);
-#endif
 
 		info("initialized", true);
-		
-		if (arguments.contains("playercleanup") && zoneServer != NULL) {
+
+		System::flushStreams();
+
+#if WITH_SESSION_API
+		if (ConfigManager::instance()->getString("Core3.Login.API.BaseURL", "").length() > 0) {
+			if (configManager != nullptr) {
+				sessionAPIClient->notifyGalaxyStart(configManager->getZoneGalaxyID());
+			}
+		}
+#endif // WITH_SESSION_API
+
+		if (arguments.contains("playercleanup") && zoneServer != nullptr) {
 			zoneServer->getPlayerManager()->cleanupCharacters();
 		}
 
-		if (arguments.contains("playercleanupstats") && zoneServer != NULL) {
+		if (arguments.contains("playercleanupstats") && zoneServer != nullptr) {
 			zoneServer->getPlayerManager()->getCleanupCharacterCount();
 		}
 
 		if (arguments.contains("shutdown")) {
 			handleCmds = false;
 		}
-		
-	} catch (ServiceException& e) {
-		shutdown();
-	} catch (DatabaseException& e) {
-		info(e.getMessage());
 
-		exit(1);
+	} catch (const ServiceException& e) {
+		shutdown();
+	} catch (const DatabaseException& e) {
+		fatal(e.getMessage());
 	}
 }
 
@@ -248,24 +712,35 @@ void ServerCore::run() {
 }
 
 void ServerCore::shutdown() {
-	info("shutting down server..", true);
+	info(true) << "shutting down server..";
+
+	handleCmds = false;
+
+#ifdef WITH_REST_API
+	if (restServer) {
+		restServer->stop();
+
+		delete restServer;
+		restServer = nullptr;
+	}
+#endif // WITH_REST_API
 
 	ObjectManager* objectManager = ObjectManager::instance();
 
-	while (objectManager->isObjectUpdateInProcess())
+	while (objectManager->isObjectUpdateInProgress())
 		Thread::sleep(500);
 
 	objectManager->cancelDeleteCharactersTask();
 	objectManager->cancelUpdateModifiedObjectsTask();
 
-	if (loginServer != NULL) {
+	if (loginServer != nullptr) {
 		loginServer->stop();
-		loginServer = NULL;
+		loginServer = nullptr;
 	}
 
 	ZoneServer* zoneServer = zoneServerRef.get();
 
-	if (zoneServer != NULL) {
+	if (zoneServer != nullptr) {
 		zoneServer->setServerStateShuttingDown();
 
 		Thread::sleep(2000);
@@ -274,6 +749,7 @@ void ServerCore::shutdown() {
 
 		PlayerManager* playerManager = zoneServer->getPlayerManager();
 
+		playerManager->stopOnlinePlayerLogTask();
 		playerManager->disconnectAllPlayers();
 
 		int count = 0;
@@ -283,39 +759,38 @@ void ServerCore::shutdown() {
 		}
 
 		info("All players disconnected", true);
+
+		auto frsManager = zoneServer->getFrsManager();
+
+		if (frsManager != nullptr) {
+			frsManager->cancelTasks();
+		}
 	}
 
-	if (pingServer != NULL) {
+	if (pingServer != nullptr) {
 		pingServer->stop();
-		delete pingServer;
-		pingServer = NULL;
+		pingServer = nullptr;
 	}
 
-	if (webServer != NULL) {
-		webServer->stop();
-		webServer = NULL;
-	}
-
-	if (statusServer != NULL) {
+	if (statusServer != nullptr) {
 		statusServer->stop();
-		delete statusServer;
-		statusServer = NULL;
+		statusServer = nullptr;
 	}
 
 	NavMeshManager::instance()->stop();
 
 	Thread::sleep(5000);
 
-	objectManager->createBackup();
+	objectManager->createBackup(true);
 
-	while (objectManager->isObjectUpdateInProcess())
+	while (objectManager->isObjectUpdateInProgress())
 		Thread::sleep(500);
 
 	info("database backup done", true);
 
 	objectManager->cancelUpdateModifiedObjectsTask();
 
-	if (zoneServer != NULL) {
+	if (zoneServer != nullptr) {
 		zoneServer->clearZones();
 	}
 
@@ -323,9 +798,9 @@ void ServerCore::shutdown() {
 
 	Core::shutdownTaskManager();
 
-	if (zoneServer != NULL) {
+	if (zoneServer != nullptr) {
 		zoneServer->stop();
-		zoneServer = NULL;
+		zoneServer = nullptr;
 	}
 
 	DistributedObjectDirectory* dir = objectManager->getLocalObjectDirectory();
@@ -336,36 +811,43 @@ void ServerCore::shutdown() {
 	typedef std::remove_reference<decltype(*objects)>::type ObjectsMapType;
 
 	while (objectsIterator.hasNext()) {
-		ObjectsMapType::key_type key;
-		ObjectsMapType::value_type value;
+		ObjectsMapType::key_type* key;
+		ObjectsMapType::value_type* value;
 
 		objectsIterator.getNextKeyAndValue(key, value);
 
-		tbl.put(key, value);
+		tbl.put(*key, *value);
 	}
 
 	objectManager->finalizeInstance();
 
-	configManager = NULL;
-	metricsManager = NULL;
+#ifdef WITH_SESSION_API
+	if (sessionAPIClient) {
+		if (configManager != nullptr) {
+			sessionAPIClient->notifyGalaxyShutdown();
+		}
 
-	if (database != NULL) {
+		sessionAPIClient->finalizeInstance();
+	}
+#endif // WITH_SESSION_API
+
+	configManager = nullptr;
+	metricsManager = nullptr;
+
+	if (database != nullptr) {
 		delete database;
-		database = NULL;
+		database = nullptr;
 	}
 
-	if (mantisDatabase != NULL) {
+	if (mantisDatabase != nullptr) {
 		delete mantisDatabase;
-		mantisDatabase = NULL;
+		mantisDatabase = nullptr;
 	}
 
-	if (features != NULL) {
+	if (features != nullptr) {
 		delete features;
-		features = NULL;
+		features = nullptr;
 	}
-
-	mysql_thread_end();
-	engine::db::mysql::MySqlDatabase::finalizeLibrary();
 
 	NetworkInterface::finalize();
 
@@ -373,260 +855,179 @@ void ServerCore::shutdown() {
 
 	orb->finalizeInstance();
 
-	zoneServerRef = NULL;
+	zoneServerRef = nullptr;
 
 	info("server closed", true);
 }
 
-void ServerCore::handleCommands() {
-	while (handleCmds) {
+ServerCore::CommandResult ServerCore::processConsoleCommand(const String& commandString) {
+	CommandResult result = CommandResult::NOTFOUND;
 
-#ifdef WITH_STM
-		Reference<Transaction*> transaction = TransactionalMemoryManager::instance()->startTransaction();
-#endif
+	try {
+		StringTokenizer tokenizer(commandString);
 
-		try {
-			String fullCommand;
+		String command, arguments;
 
-			Thread::sleep(500);
+		if (tokenizer.hasMoreTokens())
+			tokenizer.getStringToken(command);
 
-			System::out << "> ";
+		if (tokenizer.hasMoreTokens())
+			arguments = tokenizer.getRemainingString();
 
-			char line[256];
-			auto res = fgets(line, sizeof(line), stdin);
+		auto it = consoleCommands.find(command);
 
-			if (!res)
-				continue;
-
-			fullCommand = line;
-			fullCommand = fullCommand.replaceFirst("\n", "");
-
-			StringTokenizer tokenizer(fullCommand);
-
-			String command, arguments;
-
-			if (tokenizer.hasMoreTokens())
-				tokenizer.getStringToken(command);
-
-			if (tokenizer.hasMoreTokens())
-				tokenizer.finalToken(arguments);
-
-			ZoneServer* zoneServer = zoneServerRef.getForUpdate();
-
-			if (command == "exit") {
-				if (zoneServer != NULL) {
-					ChatManager* chatManager = zoneServer->getChatManager();
-					chatManager->broadcastGalaxy(NULL,
-							"Server is shutting down NOW!");
-				}
-
-				return;
-			} else if (command == "dumpmem") {
-#ifdef DEBUG_MEMORY
-				DumpUnfreed(TRUE);
-#endif
-			} else if (command == "logQuadTree") {
-				QuadTree::setLogging(!QuadTree::doLog());
-			} else if (command == "info") {
-				//TaskManager::instance()->printInfo();
-
-				if (loginServer != NULL)
-					loginServer->printInfo();
-
-				if (zoneServer != NULL)
-					zoneServer->printInfo();
-
-				if (pingServer != NULL)
-					pingServer->printInfo();
-			} else if (command == "lock") {
-				if (zoneServer != NULL)
-					zoneServer->setServerStateLocked();
-			} else if (command == "unlock") {
-				if (zoneServer != NULL)
-					zoneServer->setServerStateOnline();
-			} else if (command == "icap") {
-				if (zoneServer != NULL)
-					zoneServer->changeUserCap(50);
-			} else if (command == "dcap") {
-				if (zoneServer != NULL)
-					zoneServer->changeUserCap(-50);
-			} else if (command == "fixQueue") {
-				if (zoneServer != NULL)
-					zoneServer->fixScheduler();
-			} else if (command == "save") {
-				ObjectManager::instance()->createBackup();
-				//ObjectDatabaseManager::instance()->checkpoint();
-			} else if (command == "help") {
-				System::out << "available commands:\n";
-				System::out << "\texit, logQuadTree, info, lock, unlock, icap, dcap, fixQueue, save, chars, lookupcrc, rev, broadcast, shutdown.\n";
-			} else if (command == "chars") {
-				uint32 num = 0;
-
-				try {
-					num = UnsignedInteger::valueOf(arguments);
-				} catch (Exception& e) {
-					System::out << "invalid number of concurrent chars per account specified";
-				}
-
-				if (num != 0) {
-					PlayerManager* pMan = zoneServer->getPlayerManager();
-					pMan->setOnlineCharactersPerAccount(num);
-
-					System::out << "changed max concurrent chars per account to: " << num << endl;
-				}
-			} else if (command == "lookupcrc") {
-				uint32 crc = 0;
-				try {
-					crc = UnsignedInteger::valueOf(arguments);
-				} catch (Exception& e) {
-					System::out << "invalid crc number expected dec";
-				}
-
-				if (crc != 0) {
-					String file = TemplateManager::instance()->getTemplateFile(
-							crc);
-
-					System::out << "result: " << file << endl;
-				}
-
-			} else if (command == "loglevel") {
-				int level = 0;
-				try {
-					level = Integer::valueOf(arguments);
-				} catch (Exception& e) {
-					System::out << "invalid log level" << endl;
-				}
-
-				if (level >= Logger::NONE && level <= Logger::DEBUG) {
-					Logger::setGlobalFileLogLevel(static_cast<Logger::LogLevel>(level));
-
-					System::out << "log level changed to: " << level << endl;
-				}
-			} else if (command == "rev") {
-				System::out << ConfigManager::instance()->getRevision() << endl;
-			} else if (command == "broadcast") {
-				ChatManager* chatManager = zoneServer->getChatManager();
-				chatManager->broadcastGalaxy(NULL, arguments);
-			} else if (command == "shutdown") {
-				int minutes = 1;
-
-				try {
-					minutes = UnsignedInteger::valueOf(arguments);
-				} catch (Exception& e) {
-					System::out << "invalid minutes number expected dec";
-				}
-
-				if (zoneServer != NULL) {
-					zoneServer->timedShutdown(minutes);
-
-					shutdownBlockMutex.lock();
-
-					waitCondition.wait(&shutdownBlockMutex);
-
-					shutdownBlockMutex.unlock();
-				}
-
-				return;
-			} else if ( command == "playercleanup" ) {
-
-				if(zoneServerRef != NULL){
-					ZoneServer* server = zoneServerRef.get();
-
-					if(server != NULL)
-						server->getPlayerManager()->cleanupCharacters();
-				}
-
-			} else if ( command == "playercleanupstats" ) {
-
-				if(zoneServerRef != NULL){
-
-					ZoneServer* server = zoneServerRef.get();
-
-					if(server != NULL)
-						server->getPlayerManager()->getCleanupCharacterCount();
-				}
-
-			} else if ( command == "test" ) {
-				// get lua
-				Lua* lua = DirectorManager::instance()->getLuaInstance();
-
-				// create the lua function
-				Reference<LuaFunction*> func = lua->createFunction("Tests", arguments, 0);
-				func->callFunction();
-			} else if ( command == "reloadscreenplays" ) {
-				DirectorManager::instance()->reloadScreenPlays();
-			} else if ( command == "clearstats" ) {
-				Core::getTaskManager()->clearWorkersTaskStats();
-#ifdef COLLECT_TASKSTATISTICS
-			} else if (command == "statsd") {
-				StringTokenizer argTokenizer(arguments);
-
-				argTokenizer.setDelimiter(" ");
-
-				String address;
-				int port = 0;
-
-				if (argTokenizer.hasMoreTokens())
-					argTokenizer.getStringToken(address);
-
-				if (argTokenizer.hasMoreTokens())
-					port = argTokenizer.getIntToken();
-
-				if (port) {
-					MetricsManager::instance()->initializeStatsDConnection(address.toCharArray(), port);
-
-					System::out << "metrics manager connection set to" << address << ":" << port << endl;
-				} else {
-					System::out << "invalid port or address" << endl;
-				}
-			} else if (command == "samplerate") {
-				try {
-					int rate = UnsignedInteger::valueOf(arguments);
-
-					Core::getTaskManager()->setStatsDTaskSampling(rate);
-
-					System::out << "statsd sampling rate changed to " << rate << endl;
-				} catch (Exception& e) {
-					System::out << "invalid statsd sampling rate" << endl;
-				}
-			} else if (command == "sampleratedb") {
-				try {
-					int rate = UnsignedInteger::valueOf(arguments);
-
-					Core::getTaskManager()->setStatsDBdbSamplingRate(rate);
-
-					System::out << "statsd berkeley db sampling rate changed to " << rate << endl;
-				} catch (Exception& e) {
-					System::out << "invalid statsd sampling rate" << endl;
-				}
-#endif
-			} else {
-				System::out << "unknown command (" << command << ")\n";
-			}
-		} catch (SocketException& e) {
-			System::out << "[ServerCore] " << e.getMessage();
-		} catch (ArrayIndexOutOfBoundsException& e) {
-			System::out << "[ServerCore] " << e.getMessage() << "\n";
-		} catch (Exception& e) {
-			System::out << "[ServerCore] unreported Exception caught\n";
+		if (it != consoleCommands.npos) {
+			result = consoleCommands.get(it)(arguments);
+		} else {
+			result = CommandResult::NOTFOUND;
 		}
+	} catch (const Exception& e) {
+		error() << commandString << " EXCEPTION: " <<  e.getMessage();
 
-#ifdef WITH_STM
-		try {
-			TransactionalMemoryManager::commitPureTransaction(transaction);
-		} catch (const TransactionAbortedException& e) {
-		}
-#endif
-
+		return CommandResult::ERROR;
 	}
 
-	Thread::sleep(10000);
+	return result;
+}
+
+void ServerCore::queueConsoleCommand(const String& commandString) {
+	if (!handleCmds) {
+		error() << "Ignoring queued command: " << commandString;
+		return;
+	}
+
+	auto line = commandString + "\n";
+	consoleCommandPipe.writeLine(line.toCharArray());
+}
+
+void ServerCore::handleCommands() {
+	if (!handleCmds)
+		return;
+
+	consoleCommandPipe.create(false);
+
+	auto reader = coredetail::ConsoleReaderService(instance);
+	reader.start(true);
+
+	while (handleCmds) {
+		Thread::sleep(500);
+
+		System::out << "\nREADY\n> " << flush;
+
+		char line[256];
+
+		auto len = consoleCommandPipe.readLine(line, sizeof(line));
+
+		if (!len)
+			continue;
+
+		auto cmd = String(line).trim();
+
+		if (cmd.isEmpty())
+			continue;
+
+		if (!handleCmds) {
+			error() << "console command processing disabled, ignoring: " << cmd;
+			break;
+		}
+
+		auto result = processConsoleCommand(cmd);
+
+		if (result == CommandResult::SHUTDOWN)
+			break;
+
+		if (result == CommandResult::NOTFOUND)
+			warning() << "unknown command (" << cmd << ")";
+
+		System::flushStream(stdout);
+	}
+
+	reader.setRunning(false);
+
+	Thread::yield();
+
+	reader.join();
+
+	consoleCommandPipe.close();
+
+	info(true) << "Console Closed";
 }
 
 void ServerCore::processConfig() {
 	if (!configManager->loadConfigData())
-		info("missing config file.. loading default values\n");
-
-	//if (!features->loadFeatures())
-	//info("Problem occurred trying to load features.lua");
+		warning("missing config file.. loading default values");
 }
+
+int ServerCore::getSchemaVersion() {
+	if (instance != nullptr && instance->database != nullptr)
+		return instance->database->getSchemaVersion();
+
+	return -1;
+}
+
+coredetail::ConsoleReaderService::ConsoleReaderService(ServerCore* serverCoreInstance) : ServiceThread("ConsoleReader"), core(serverCoreInstance) {
+}
+
+bool coredetail::ConsoleReaderService::inputAvailable() const {
+#ifndef PLATFORM_WIN
+	struct timeval tv = {};
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+
+	fd_set fds;
+
+	FD_ZERO(&fds);
+	FD_SET(STDIN_FILENO, &fds);
+
+	auto ret = select(STDIN_FILENO + 1, &fds, nullptr, nullptr, &tv);
+
+	fatal(ret != -1) << "select on stdin failed";
+
+	return FD_ISSET(STDIN_FILENO, &fds);
+#else
+	static auto stdinHandle = [this] () {
+		auto handle = GetStdHandle(STD_INPUT_HANDLE);
+
+		fatal(handle) << "GetStdHandle returned null stdin handle";
+
+		return handle;
+	} ();
+
+	switch (WaitForSingleObject(stdinHandle, 1000)) {
+	case WAIT_OBJECT_0:
+		return true;
+	default:
+		return false;
+	}
+#endif
+}
+
+void coredetail::ConsoleReaderService::run() {
+	setReady(true);
+
+	while (doRun.get(std::memory_order_seq_cst)) {
+		char* res = nullptr;
+
+#ifndef PLATFORM_WIN
+		char line[PIPE_BUF];
+#else
+		char line[256];
+#endif
+
+		if (!inputAvailable())
+			continue;
+
+		res = fgets(line, sizeof(line), stdin);
+
+		if (!res)
+			continue;
+
+		auto cmd = String(line).trim();
+
+		if (cmd.isEmpty())
+			continue;
+
+		core->queueConsoleCommand(cmd);
+	}
+}
+

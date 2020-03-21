@@ -13,6 +13,7 @@ class CreatureState : public Singleton<CreatureState>, public Logger, public Obj
 public:
 	HashTable<String, uint64> states;
 
+	//enum class State : __int64 {
 	enum {
 		INVALID                  = 0x00,
 		COVER                    = 0x01,
@@ -47,23 +48,21 @@ public:
 		PILOTINGSHIP             = 0x20000000,
 		SHIPOPERATIONS           = 0x40000000,
 		SHIPGUNNER               = 0x80000000,
-		SHIPINTERIOR             = (uint64) 1 << 32,
-		PILOTINGPOBSHIP          = (uint64) 1 << 33
 	};
 
+	static const uint64 SHIPINTERIOR = 1ull << 32;
+	static const uint64	PILOTINGPOBSHIP = 1ull << 33;
 
 	void loadStateData() {
-		IffStream* iffStream = TemplateManager::instance()->openIffFile("datatables/include/state.iff");
+		UniqueReference<IffStream*> iffStream(TemplateManager::instance()->openIffFile("datatables/include/state.iff"));
 
-		if (iffStream == NULL) {
+		if (iffStream == nullptr) {
 			error("Could not load states.");
 			return;
 		}
 
 		DataTableIff dtiff;
 		dtiff.readObject(iffStream);
-
-		delete iffStream;
 
 		states.removeAll();
 
@@ -76,17 +75,17 @@ public:
 			row->getValue(1, value);
 
 			if (value >= 0)
-				states.put(name.toLowerCase(), 1 << value);
+				states.put(name.toLowerCase(), 1ull << value);
 			else
 				states.put(name.toLowerCase(), 0x00);
 		}
 	}
 
-	uint64 getState(const String& state) {
+	uint64 getState(const String& state) const {
 		return states.get(state.toLowerCase());
 	}
 
-	String getSpecialName(const uint64 state, bool initialCap = false) {
+	String getSpecialName(const uint64 state, bool initialCap = false) const {
 		//This method is used for String building to match up with the tre's
 		String name = "";
 
@@ -108,7 +107,7 @@ public:
 		return name;
 	}
 
-	String getName(const uint64 state, bool initialCap = false) {
+	String getName(const uint64 state, bool initialCap = false) const {
 		String name = "invalid";
 
 		HashTableIterator<String, uint64> iter(&states);

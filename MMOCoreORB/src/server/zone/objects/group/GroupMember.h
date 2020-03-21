@@ -8,14 +8,26 @@
 #ifndef GROUPMEMBER_H_
 #define GROUPMEMBER_H_
 
-#include "server/zone/objects/creature/CreatureObject.h"
+#include "engine/util/json_utils.h"
+
+namespace server {
+	namespace zone {
+		namespace objects {
+			namespace creature {
+				class CreatureObject;
+			}
+		}
+	}
+}
+
+using namespace server::zone::objects::creature;
 
 class GroupMember : public Variable {
 	ManagedReference<CreatureObject*> creature;
 
 public:
 	GroupMember() {
-		creature = NULL;
+		creature = nullptr;
 	}
 
 	GroupMember(const GroupMember& obj) : Variable() {
@@ -58,24 +70,14 @@ public:
 		return creature.parseFromString(str, version);
 	}
 
-	bool toBinaryStream(ObjectOutputStream* stream) {
-		String name;
+	friend void to_json(nlohmann::json& j, const GroupMember& m);
 
-		creature.toBinaryStream(stream);
-
-		if (creature != NULL) {
-			name = creature->getCustomObjectName().toString();
-		}
-
-		name.toBinaryStream(stream);
-
-		return true;
-	}
+	bool toBinaryStream(ObjectOutputStream* stream);
 
 	bool parseFromBinaryStream(ObjectInputStream* stream) {
 		creature.parseFromBinaryStream(stream);
 
-		if (creature == NULL)
+		if (creature == nullptr)
 			return false;
 
 		String name;

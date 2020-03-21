@@ -6,6 +6,7 @@
 #include "server/zone/ZoneServer.h"
 #include "server/zone/objects/tangible/component/droid/DroidComponent.h"
 #include "server/zone/packets/object/ObjectMenuResponse.h"
+#include "server/zone/objects/creature/ai/DroidObject.h"
 
 DroidItemStorageModuleDataComponent::DroidItemStorageModuleDataComponent() {
 	setLoggingName("DroidItemStorageModule");
@@ -16,13 +17,13 @@ DroidItemStorageModuleDataComponent::~DroidItemStorageModuleDataComponent() {
 
 }
 
-String DroidItemStorageModuleDataComponent::getModuleName() {
+String DroidItemStorageModuleDataComponent::getModuleName() const {
 	return String("item_storage_module");
 }
 
 void DroidItemStorageModuleDataComponent::initializeTransientMembers() {
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent == NULL) {
+	if (droidComponent == nullptr) {
 		info("droidComponent was null");
 		return;
 	}
@@ -63,31 +64,31 @@ void DroidItemStorageModuleDataComponent::fillAttributeList(AttributeListMessage
 	alm->insertAttribute( "storage_module", rating > 10 ? 10 : rating );
 }
 
-String DroidItemStorageModuleDataComponent::toString() {
+String DroidItemStorageModuleDataComponent::toString() const {
 	return BaseDroidModuleComponent::toString();
 }
 
 void DroidItemStorageModuleDataComponent::addToStack(BaseDroidModuleComponent* other) {
 	DroidItemStorageModuleDataComponent* otherModule = cast<DroidItemStorageModuleDataComponent*>(other);
-	if (otherModule == NULL)
+	if (otherModule == nullptr)
 		return;
 
 	rating = rating + otherModule->rating;
 
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent != NULL)
+	if (droidComponent != nullptr)
 		droidComponent->changeAttributeValue("storage_module", (float)rating);
 }
 
 void DroidItemStorageModuleDataComponent::copy(BaseDroidModuleComponent* other) {
 	DroidItemStorageModuleDataComponent* otherModule = cast<DroidItemStorageModuleDataComponent*>(other);
-	if (otherModule == NULL)
+	if (otherModule == nullptr)
 		return;
 
 	rating = otherModule->rating;
 
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent != NULL)
+	if (droidComponent != nullptr)
 		droidComponent->addProperty("storage_module", (float)rating, 0, "exp_effectiveness");
 }
 
@@ -111,13 +112,13 @@ void DroidItemStorageModuleDataComponent::initialize(DroidObject* droid) {
 	path.append(".iff");
 
 	ManagedReference<SceneObject*> inventory = droid->getZoneServer()->createObject(path.toString().hashCode(), 1);
-	if (inventory == NULL) {
+	if (inventory == nullptr) {
 		return;
 	}
 
 	ManagedReference<SceneObject*> droidInvorty = droid->getSlottedObject("inventory");
 	if (droidInvorty) {
-		droid->removeObject(droidInvorty, NULL, true);
+		droid->removeObject(droidInvorty, nullptr, true);
 		droidInvorty->destroyObjectFromDatabase(true);
 	}
 
@@ -131,7 +132,7 @@ int DroidItemStorageModuleDataComponent::handleObjectMenuSelect(CreatureObject* 
 	if (selectedID == ITEM_STORAGE_MODULE_OPEN) {
 
 		ManagedReference<DroidObject*> droid = getDroidObject();
-		if (droid == NULL) {
+		if (droid == nullptr) {
 			info("Droid is null");
 			return 0;
 		}
@@ -141,7 +142,7 @@ int DroidItemStorageModuleDataComponent::handleObjectMenuSelect(CreatureObject* 
 		// open the inventory slot of the droid
 		ManagedReference<SceneObject*> inventory = droid->getSlottedObject("inventory");
 
-		if (inventory != NULL) {
+		if (inventory != nullptr) {
 			inventory->openContainerTo(player);
 		}
 	}

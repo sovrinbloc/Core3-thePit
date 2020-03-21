@@ -24,7 +24,7 @@ void VetHarvesterDeedImplementation::fillObjectMenuResponse(ObjectMenuResponse* 
 
 	if (!isASubChildOf(creature))
 		return;
-  
+
 	menuResponse->addRadialMenuItem(20, 3, "@ui_radial:convert_harvester"); //use
 }
 
@@ -32,19 +32,18 @@ int VetHarvesterDeedImplementation::handleObjectMenuSelect(CreatureObject* playe
 	if (selectedID != 20) // not use object
 		return 1;
 
-	if (player != NULL)
+	if (player != nullptr)
 		useObject(player);
 
 	return 0;
 }
 
 int VetHarvesterDeedImplementation::useObject(CreatureObject* creature) {
-
 	ManagedReference<PlayerObject*> ghost = creature->getPlayerObject();
 
 	ZoneServer *zone = creature->getZoneServer();
 
-	if (ghost == NULL || zone == NULL)
+	if (ghost == nullptr || zone == nullptr)
 		return 0;
 
 	if (!isASubChildOf(creature))
@@ -54,12 +53,12 @@ int VetHarvesterDeedImplementation::useObject(CreatureObject* creature) {
 
 	ManagedReference<TangibleObject*> targetObject = zone->getObject(targetID).castTo<TangibleObject*>();
 
-	if (targetObject == NULL || !targetObject->isHarvesterObject())
+	if (targetObject == nullptr || !targetObject->isHarvesterObject())
 		return 0;
 
 	ManagedReference<HarvesterObject*> harvester = targetObject.castTo<HarvesterObject*>();
 
-	if (harvester == NULL || !harvester->isOwnerOf(creature))
+	if (harvester == nullptr || !harvester->isOwnerOf(creature))
 		return 0;
 
 	if (harvester->isSelfPowered()) {
@@ -85,7 +84,7 @@ int VetHarvesterDeedImplementation::useObject(CreatureObject* creature) {
 }
 
 void VetHarvesterDeedImplementation::destroyDeed() {
-	if (parent.get() != NULL) {
+	if (parent.get() != nullptr) {
 		destroyObjectFromWorld(true);
 	}
 

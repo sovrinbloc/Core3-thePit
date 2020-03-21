@@ -11,6 +11,7 @@ include templates.tangible.InstrumentObjectTemplate;
 import server.zone.packets.object.ObjectMenuResponse;
 import server.zone.objects.creature.CreatureObject;
 
+@json
 class Instrument extends TangibleObject {
 	protected int instrumentType;
 	protected boolean beingUsed;
@@ -58,15 +59,7 @@ class Instrument extends TangibleObject {
 		Logger.setLoggingName("Instrument");
 	}
 
-	public void notifyLoadFromDatabase() {
-		super.notifyLoadFromDatabase();
-
-		beingUsed = false;
-
-		if (spawnedObject != null) {
-			spawnedObject.destroyObjectFromWorld(false);
-		}
-	}
+	public native void notifyLoadFromDatabase();
 
 	@local
 	public void loadTemplateData(SharedObjectTemplate templateData) {
@@ -106,7 +99,7 @@ class Instrument extends TangibleObject {
 	@dirty
 	public native boolean canDropInstrument();
 
-	@dirty
+	@read
 	public int getInstrumentType() {
 		return instrumentType;
 	}

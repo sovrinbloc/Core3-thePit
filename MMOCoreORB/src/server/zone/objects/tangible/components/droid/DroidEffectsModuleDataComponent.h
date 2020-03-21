@@ -31,14 +31,14 @@ protected:
 public:
 	DroidEffectsModuleDataComponent();
 	~DroidEffectsModuleDataComponent();
-	String getModuleName();
+	String getModuleName() const;
 	void initializeTransientMembers();
 	void fillAttributeList(AttributeListMessage* msg, CreatureObject* droid);
 	void fillObjectMenuResponse(SceneObject* droidObject, ObjectMenuResponse* menuResponse, CreatureObject* player);
 	int handleObjectMenuSelect(CreatureObject* player, byte selectedID, PetControlDevice* controller);
 	int getBatteryDrain();
 	void deactivate();
-	String toString();
+	String toString() const;
 	void onCall();
 	void onStore();
 	bool isActive(){ return active; }
@@ -50,6 +50,16 @@ public:
 	void setEffect( String effectName, int delay, int slotIndex );
 	bool toBinaryStream(ObjectOutputStream* stream);
 	bool parseFromBinaryStream(ObjectInputStream* stream);
+
+	void writeJSON(nlohmann::json& j) const {
+		BaseDroidModuleComponent::writeJSON(j);
+
+		SERIALIZE_JSON_MEMBER(active);
+		SERIALIZE_JSON_MEMBER(installedEffects);
+		SERIALIZE_JSON_MEMBER(configuredEffects);
+		SERIALIZE_JSON_MEMBER(configuredDelays);
+		SERIALIZE_JSON_MEMBER(currentEffectIndex);
+	}
 
 private:
 

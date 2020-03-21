@@ -92,34 +92,38 @@ public:
 		iffStream->closeForm('FOOT');
 	}
 
-	String toString() {
+	String toString() const {
 		StringBuffer str;
 		str << "{rowSize=" << rowSize << ";colSize=" << colSize << ";centerX=" << centerX << ";centerY=" << centerY << ";rowChunkSize=" << rowChunkSize << ";colChunkSize=" << colChunkSize << "}";
 
 		return str.toString();
 	}
 
-	inline float getRowSize() {
+	String toStringData() const {
+		return toString();
+	}
+
+	inline float getRowSize() const {
 		return rowSize;
 	}
 
-	inline float getColSize() {
+	inline float getColSize() const {
 		return colSize;
 	}
 
-	inline float getCenterX() {
+	inline float getCenterX() const {
 		return centerX;
 	}
 
-	inline float getCenterY() {
+	inline float getCenterY() const {
 		return centerY;
 	}
 
-	inline float getRowChunkSize() {
+	inline float getRowChunkSize() const {
 		return rowChunkSize;
 	}
 
-	inline float getColChunkSize() {
+	inline float getColChunkSize() const {
 		return colChunkSize;
 	}
 };

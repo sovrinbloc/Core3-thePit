@@ -13,7 +13,7 @@ ShipManager::ShipManager() {
 	IffStream* iffStream = DataArchiveStore::instance()->openIffFile(
 			"datatables/space/ship_components.iff");
 
-	if (iffStream == NULL) {
+	if (iffStream == nullptr) {
 		fatal("datatables/space/ship_components.iff could not be found.");
 		return;
 	}
@@ -27,7 +27,7 @@ ShipManager::ShipManager() {
 		Reference<ShipComponent*> component = new ShipComponent();
 		component->readObject(row);
 
-		//info("loaded ship component " + component->getName() + " crc:0x" + String::hexvalueOf(int(component->getName().hashCode())), true);
+		debug() << "loaded ship component " << component->getName() << " crc: " << component->getName();
 
 		shipComponents.put(component->getName().hashCode(), component);
 	}

@@ -15,23 +15,21 @@ RadialManagerImplementation::RadialManagerImplementation(ZoneServer* server) : M
 	setLoggingName("RadialManager");
 
 	setGlobalLogging(true);
-	setLogging(true);
+	setLogging(false);
 
 	zoneServer = server;
 }
 
 void RadialManagerImplementation::handleObjectMenuRequest(CreatureObject* player, ObjectMenuResponse* defaultMenuResponse, uint64 objectID) {
 	//Pre: Player is WLOCKED
-
 	//Post: Player is WLOCKED
-
 	ManagedReference<SceneObject*> menuObject = zoneServer->getObject(objectID);
 
-	if (menuObject != NULL) {
-
+	if (menuObject != nullptr) {
 		Locker clocker(menuObject, player);
 
-		//info("entering object menu request ");
+		debug("entering object menu request");
+
 		menuObject->fillObjectMenuResponse(defaultMenuResponse, player);
 	}
 
@@ -39,7 +37,7 @@ void RadialManagerImplementation::handleObjectMenuRequest(CreatureObject* player
 
 	player->sendMessage(defaultMenuResponse->clone());
 
-	if (menuObject != NULL) {
+	if (menuObject != nullptr) {
 		menuObject->notifyObservers(ObserverEventType::OBJECTRADIALOPENED, player, 0);
 	}
 }
@@ -52,33 +50,29 @@ void RadialManagerImplementation::handleObjectMenuSelect(CreatureObject* player,
 
 	ManagedReference<SceneObject*> selectedObject = zoneServer->getObject(objectID);
 
-	if (selectedObject == NULL) {
-		StringBuffer infoMsg;
-		infoMsg << "NULL object selected in ObjectMenuSelect objectID: 0x" << hex << objectID;
-		error(infoMsg.toString());
+	if (selectedObject == nullptr) {
+		error() << "nullptr object selected in ObjectMenuSelect objectID: 0x" << hex << objectID;
 
 		return;
 	}
 
 	try {
-
 		Locker locker(player);
-
 		Locker clocker(selectedObject, player);
 
 		ManagedReference<BuildingObject*> rootParent = cast<BuildingObject*>(selectedObject->getRootParent());
 
-		if (rootParent != NULL && (!rootParent->isAllowedEntry(player) || rootParent != player->getRootParent()))
+		if (rootParent != nullptr && (!rootParent->isAllowedEntry(player) || rootParent != player->getRootParent()))
 			return;
 
 		/*if (!selectedObject->checkContainerPermission(player, ContainerPermissions::USE))
 			return;*/
 
-		selectedObject->info("entering radial call " + String::valueOf(selectID));
+		selectedObject->debug() << "entering radial call " << selectID;
 		selectedObject->handleObjectMenuSelect(player, selectID);
 
 		selectedObject->notifyObservers(ObserverEventType::OBJECTRADIALUSED, player, selectID);
-	} catch (Exception& e) {
+	} catch (const Exception& e) {
 		error("exception caught in void RadialManagerImplementation::handleObjectMenuSelect");
 
 		error(e.getMessage());

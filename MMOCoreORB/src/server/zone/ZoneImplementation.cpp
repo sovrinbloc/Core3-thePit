@@ -29,8 +29,8 @@ ZoneImplementation::ZoneImplementation(ZoneProcessServer* serv, const String& na
 	zoneName = name;
 	zoneCRC = name.hashCode();
 
-	regionTree = new QuadTree(-8192, -8192, 8192, 8192);
-	quadTree = new QuadTree(-8192, -8192, 8192, 8192);
+	regionTree = new server::zone::QuadTree(-8192, -8192, 8192, 8192);
+	quadTree = new server::zone::QuadTree(-8192, -8192, 8192, 8192);
 
 	objectMap = new ObjectMap();
 
@@ -41,7 +41,7 @@ ZoneImplementation::ZoneImplementation(ZoneProcessServer* serv, const String& na
 
 	//galacticTime = new Time();
 
-	planetManager = NULL;
+	planetManager = nullptr;
 
 	setLoggingName("Zone " + name);
 
@@ -93,22 +93,22 @@ void ZoneImplementation::startManagers() {
 void ZoneImplementation::stopManagers() {
 	info("Shutting down.. ", true);
 
-	if (creatureManager != NULL) {
+	if (creatureManager != nullptr) {
 		creatureManager->stop();
-		creatureManager = NULL;
+		creatureManager = nullptr;
 	}
 
-	if (planetManager != NULL) {
-		planetManager->finalize();
-		planetManager = NULL;
+	if (planetManager != nullptr) {
+		//planetManager->finalize();
+		planetManager = nullptr;
 	}
 
-	processor = NULL;
-	server = NULL;
-	mapLocations = NULL;
-	objectMap = NULL;
-	quadTree = NULL;
-	regionTree = NULL;
+	processor = nullptr;
+	server = nullptr;
+	mapLocations = nullptr;
+	objectMap = nullptr;
+	quadTree = nullptr;
+	regionTree = nullptr;
 }
 
 void ZoneImplementation::clearZone() {
@@ -119,16 +119,16 @@ void ZoneImplementation::clearZone() {
 	creatureManager->unloadSpawnAreas();
 
 	HashTable<uint64, ManagedReference<SceneObject*> > tbl;
-	tbl.copyFrom(objectMap->getMap());
+	tbl.copyFrom(*objectMap->getMap());
 
 	zonelocker.release();
 
-	HashTableIterator<uint64, ManagedReference<SceneObject*> > iterator = tbl.iterator();
+	auto iterator = tbl.iterator();
 
 	while (iterator.hasNext()) {
 		ManagedReference<SceneObject*> sceno = iterator.getNextValue();
 
-		if (sceno != NULL) {
+		if (sceno != nullptr) {
 			Locker locker(sceno);
 			sceno->destroyObjectFromWorld(false);
 		}
@@ -142,10 +142,10 @@ void ZoneImplementation::clearZone() {
 }
 
 float ZoneImplementation::getHeight(float x, float y) {
-	if (planetManager != NULL) {
+	if (planetManager != nullptr) {
 		TerrainManager* manager = planetManager->getTerrainManager();
 
-		if (manager != NULL)
+		if (manager != nullptr)
 			return manager->getHeight(x, y);
 	}
 
@@ -153,12 +153,12 @@ float ZoneImplementation::getHeight(float x, float y) {
 }
 
 float ZoneImplementation::getHeightNoCache(float x, float y) {
-	if (planetManager != NULL) {
+	if (planetManager != nullptr) {
 		TerrainManager* manager = planetManager->getTerrainManager();
 
-		if (manager != NULL) {
+		if (manager != nullptr) {
 			ProceduralTerrainAppearance *appearance = manager->getProceduralTerrainAppearance();
-			if (appearance != NULL)
+			if (appearance != nullptr)
 				return appearance->getHeight(x, y);
 		}
 	}
@@ -208,7 +208,7 @@ int ZoneImplementation::getInRangeSolidObjects(float x, float y, float range, So
 		for (int i = objects->size() - 1; i >= 0; i--) {
 			SceneObject* sceno = static_cast<SceneObject*>(objects->getUnsafe(i).get());
 
-			if (sceno == NULL || sceno->getParentID() != 0) {
+			if (sceno == nullptr || sceno->getParentID() != 0) {
 				objects->remove(i);
 				continue;
 			}
@@ -225,7 +225,7 @@ int ZoneImplementation::getInRangeSolidObjects(float x, float y, float range, So
 
 			SharedObjectTemplate *shot = sceno->getObjectTemplate();
 
-			if (shot == NULL) {
+			if (shot == nullptr) {
 				objects->remove(i);
 				continue;
 			}
@@ -261,18 +261,18 @@ int ZoneImplementation::getInRangeObjects(float x, float y, float range, SortedV
 			SceneObject* sceneObject = static_cast<SceneObject*>(objects->getUnsafe(i).get());
 			BuildingObject* building = sceneObject->asBuildingObject();
 
-			if (building != NULL) {
+			if (building != nullptr) {
 				for (int j = 1; j <= building->getMapCellSize(); ++j) {
 					CellObject* cell = building->getCell(j);
 
-					if (cell != NULL && cell->isContainerLoaded()) {
+					if (cell != nullptr && cell->isContainerLoaded()) {
 						try {
 							ReadLocker rlocker(cell->getContainerLock());
 
 							for (int h = 0; h < cell->getContainerObjectsSize(); ++h) {
 								Reference<SceneObject*> obj = cell->getContainerObject(h);
 
-								if (obj != NULL)
+								if (obj != nullptr)
 									buildingObjects.emplace(std::move(obj));
 							}
 
@@ -283,7 +283,7 @@ int ZoneImplementation::getInRangeObjects(float x, float y, float range, SortedV
 			} else if (sceneObject->isVehicleObject() || sceneObject->isMount()) {
 				Reference<SceneObject*> rider = sceneObject->getSlottedObject("rider");
 
-				if (rider != NULL)
+				if (rider != nullptr)
 					buildingObjects.emplace(std::move(rider));
 			}
 		}
@@ -320,29 +320,30 @@ int ZoneImplementation::getInRangeObjects(float x, float y, float range, InRange
 
 			BuildingObject* building = sceneObject->asBuildingObject();
 
-			if (building != NULL) {
+			if (building != nullptr) {
 				for (int j = 1; j <= building->getMapCellSize(); ++j) {
 					CellObject* cell = building->getCell(j);
 
-					if (cell != NULL && cell->isContainerLoaded()) {
+					if (cell != nullptr && cell->isContainerLoaded()) {
 						try {
 							ReadLocker rlocker(cell->getContainerLock());
 
 							for (int h = 0; h < cell->getContainerObjectsSize(); ++h) {
 								Reference<SceneObject*> obj = cell->getContainerObject(h);
 
-								if (obj != NULL)
+								if (obj != nullptr)
 									buildingObjects.add(obj.get());
 							}
 
-						} catch (...) {
+						} catch (Exception& e) {
+							warning("exception in Zone::GetInRangeObjects: " + e.getMessage());
 						}
 					}
 				}
 			} else if (sceneObject->isVehicleObject() || sceneObject->isMount()) {
 				Reference<SceneObject*> rider = sceneObject->getSlottedObject("rider");
 
-				if (rider != NULL)
+				if (rider != nullptr)
 					buildingObjects.add(rider.get());
 			}
 		}
@@ -355,43 +356,40 @@ int ZoneImplementation::getInRangeObjects(float x, float y, float range, InRange
 }
 
 int ZoneImplementation::getInRangeActiveAreas(float x, float y, SortedVector<ManagedReference<ActiveArea*> >* objects, bool readLockZone) {
-	//Locker locker(_this.getReferenceUnsafeStaticCast());
 	objects->setNoDuplicateInsertPlan();
 
 	bool readlock = readLockZone && !_this.getReferenceUnsafeStaticCast()->isLockedByCurrentThread();
 
-	//_this.getReferenceUnsafeStaticCast()->rlock(readlock);
-
 	Zone* thisZone = _this.getReferenceUnsafeStaticCast();
 
-	try {
-		SortedVector<ManagedReference<QuadTreeEntry*> > entryObjects;
-		SortedVector<ManagedReference<QuadTreeEntry*> > entryObjects2;
+	SortedVector<ManagedReference<QuadTreeEntry*> > entryObjects;
+	SortedVector<ManagedReference<QuadTreeEntry*> > entryObjects2;
 
+	try {
 		thisZone->rlock(readlock);
 
 		regionTree->inRange(x, y, entryObjects);
 		regionTree->inRange(x, y, 1024, entryObjects2);
 
 		thisZone->runlock(readlock);
-
-		for (int i = 0; i < entryObjects.size(); ++i) {
-			ActiveArea* obj = static_cast<ActiveArea*>(entryObjects.get(i).get());
-			objects->put(obj);
-		}
-
-		for (int i = 0; i < entryObjects2.size(); ++i) {
-			ActiveArea* obj = static_cast<ActiveArea*>(entryObjects2.get(i).get());
-			if (obj->containsPoint(x, y))
-				objects->put(obj);
-		}
-	}catch (...) {
-//		_this.getReferenceUnsafeStaticCast()->runlock(readlock);
+	} catch (...) {
+		thisZone->runlock(readlock);
 
 		throw;
 	}
 
-//	_this.getReferenceUnsafeStaticCast()->runlock(readlock);
+
+	for (int i = 0; i < entryObjects.size(); ++i) {
+		ActiveArea* obj = static_cast<ActiveArea*>(entryObjects.get(i).get());
+		objects->put(obj);
+	}
+
+	for (int i = 0; i < entryObjects2.size(); ++i) {
+		ActiveArea* obj = static_cast<ActiveArea*>(entryObjects2.get(i).get());
+
+		if (obj->containsPoint(x, y))
+			objects->put(obj);
+	}
 
 	return objects->size();
 }
@@ -404,19 +402,11 @@ int ZoneImplementation::getInRangeNavMeshes(float x, float y, SortedVector<Manag
 	SortedVector<QuadTreeEntry*> entryObjects;
 	SortedVector<QuadTreeEntry*> entryObjects2;
 
-	try {
-		//thisZone->rlock(readlock);
-		ReadLocker rlocker(thisZone);
+	ReadLocker rlocker(thisZone);
 
-		regionTree->inRange(x, y, entryObjects);
+	regionTree->inRange(x, y, entryObjects);
 
-		regionTree->inRange(x, y, 1024, entryObjects2);
-
-		//thisZone->runlock(readlock);
-	}catch (...) {
-		//thisZone->runlock(readlock);
-		throw;
-	}
+	regionTree->inRange(x, y, 1024, entryObjects2);
 
 	for (int i = 0; i < entryObjects.size(); ++i) {
 		ActiveArea* area = static_cast<ActiveArea*>(entryObjects.getUnsafe(i));
@@ -439,44 +429,40 @@ int ZoneImplementation::getInRangeNavMeshes(float x, float y, SortedVector<Manag
 }
 
 int ZoneImplementation::getInRangeActiveAreas(float x, float y, ActiveAreasVector* objects, bool readLockZone) {
-	//Locker locker(_this.getReferenceUnsafeStaticCast());
 	objects->setNoDuplicateInsertPlan();
 
 	bool readlock = readLockZone && !_this.getReferenceUnsafeStaticCast()->isLockedByCurrentThread();
 
-	//_this.getReferenceUnsafeStaticCast()->rlock(readlock);
-
 	Zone* thisZone = _this.getReferenceUnsafeStaticCast();
 
-	try {
-		SortedVector<QuadTreeEntry*> entryObjects;
-		SortedVector<QuadTreeEntry*> entryObjects2;
+	SortedVector<QuadTreeEntry*> entryObjects;
+	SortedVector<QuadTreeEntry*> entryObjects2;
 
+	try {
 		thisZone->rlock(readlock);
 
 		regionTree->inRange(x, y, entryObjects);
 		regionTree->inRange(x, y, 1024, entryObjects2);
 
 		thisZone->runlock(readlock);
-
-		for (int i = 0; i < entryObjects.size(); ++i) {
-			ActiveArea* obj = static_cast<ActiveArea*>(entryObjects.getUnsafe(i));
-			objects->put(obj);
-		}
-
-		for (int i = 0; i < entryObjects2.size(); ++i) {
-			ActiveArea* obj = static_cast<ActiveArea*>(entryObjects2.getUnsafe(i));
-
-			if (obj->containsPoint(x, y))
-				objects->put(obj);
-		}
-	}catch (...) {
-//		_this.getReferenceUnsafeStaticCast()->runlock(readlock);
+	} catch (...) {
+		thisZone->runlock(readlock);
 
 		throw;
 	}
 
-//	_this.getReferenceUnsafeStaticCast()->runlock(readlock);
+
+	for (int i = 0; i < entryObjects.size(); ++i) {
+		ActiveArea* obj = static_cast<ActiveArea*>(entryObjects.getUnsafe(i));
+		objects->put(obj);
+	}
+
+	for (int i = 0; i < entryObjects2.size(); ++i) {
+		ActiveArea* obj = static_cast<ActiveArea*>(entryObjects2.getUnsafe(i));
+
+		if (obj->containsPoint(x, y))
+			objects->put(obj);
+	}
 
 	return objects->size();
 }
@@ -522,7 +508,7 @@ int ZoneImplementation::getInRangeActiveAreas(float x, float y, float range, Sor
 	bool readlock = readLockZone && !_this.getReferenceUnsafeStaticCast()->isLockedByCurrentThread();
 
 	//_this.getReferenceUnsafeStaticCast()->rlock(readlock);
-	
+
 	Zone* thisZone = _this.getReferenceUnsafeStaticCast();
 
 	try {
@@ -531,7 +517,7 @@ int ZoneImplementation::getInRangeActiveAreas(float x, float y, float range, Sor
 		thisZone->rlock(readlock);
 
 		regionTree->inRange(x, y, range, entryObjects);
-		
+
 		thisZone->runlock(readlock);
 
 		for (int i = 0; i < entryObjects.size(); ++i) {
@@ -635,24 +621,27 @@ void ZoneImplementation::updateActiveAreas(TangibleObject* tano) {
 		}
 
 		// update world areas
-		if (creatureManager != NULL) {
-			Vector<ManagedReference<SpawnArea*> >* worldAreas = creatureManager->getWorldSpawnAreas();
+		if (creatureManager != nullptr) {
+			auto worldAreas = creatureManager->getWorldSpawnAreas();
 
-			if (worldAreas != NULL) {
-				for (int i = 0; i < worldAreas->size(); ++i) {
-					ActiveArea* activeArea = worldAreas->get(i).get();
-					Locker lockerO(tano);
+			if (worldAreas != nullptr && worldAreas->size()) {
+				Reference<TangibleObject*> tanoStrong = tano;
 
-					//			Locker locker(activeArea, object);
+				Core::getTaskManager()->executeTask([worldAreas, tanoStrong] () {
+					Locker lockerO(tanoStrong);
 
-					if (!tano->hasActiveArea(activeArea)) {
-						tano->addActiveArea(activeArea);
-						//activeArea->enqueueEnterEvent(object);
-						activeArea->notifyEnter(tano);
-					} else {
-						activeArea->notifyPositionUpdate(tano);
+					for (int i = 0; i < worldAreas->size(); ++i) {
+						auto activeArea = worldAreas->get(i);
+
+						if (!tanoStrong->hasActiveArea(activeArea)) {
+							tanoStrong->addActiveArea(activeArea);
+							//activeArea->enqueueEnterEvent(object);
+							activeArea->notifyEnter(tanoStrong);
+						} else {
+							activeArea->notifyPositionUpdate(tanoStrong);
+						}
 					}
-				}
+				}, "UpdateWorldActiveAreas");
 			}
 		}
 	} catch (...) {
@@ -677,12 +666,12 @@ void ZoneImplementation::addSceneObject(SceneObject* object) {
 	} else if (object->isTerminal()) {
 		Terminal* terminal = cast<Terminal*>(object);
 		ManagedReference<SceneObject*> controlledObject = terminal->getControlledObject();
-		if (controlledObject != NULL && controlledObject->isStructureObject()) {
+		if (controlledObject != nullptr && controlledObject->isStructureObject()) {
 			StructureObject* structure = controlledObject.castTo<StructureObject*>();
 			if (structure->isCivicStructure())
 				return;
 		}
-	} else if (old == NULL && object->isAiAgent()) {
+	} else if (old == nullptr && object->isAiAgent()) {
 		spawnedAiAgents.increment();
 	}
 
@@ -700,7 +689,7 @@ void ZoneImplementation::registerObjectWithPlanetaryMap(SceneObject* object) {
 	// to the planet's mission map.
 	if (objectIsValidPlanetaryMapPerformanceLocation(object)) {
 		PlanetManager* planetManager = getPlanetManager();
-		if (planetManager != NULL) {
+		if (planetManager != nullptr) {
 			planetManager->addPerformanceLocation(object);
 		}
 	}
@@ -716,7 +705,7 @@ void ZoneImplementation::unregisterObjectWithPlanetaryMap(SceneObject* object) {
 	// from the planet's mission map.
 	if (objectIsValidPlanetaryMapPerformanceLocation(object)) {
 		PlanetManager* planetManager = getPlanetManager();
-		if (planetManager != NULL) {
+		if (planetManager != nullptr) {
 			planetManager->removePerformanceLocation(object);
 		}
 	}
@@ -724,14 +713,14 @@ void ZoneImplementation::unregisterObjectWithPlanetaryMap(SceneObject* object) {
 
 bool ZoneImplementation::objectIsValidPlanetaryMapPerformanceLocation(SceneObject* object) {
 	BuildingObject* building = object->asBuildingObject();
-	if (building == NULL) {
+	if (building == nullptr) {
 		return false;
 	}
 
 	bool hasPerformanceLocationCategory = false;
 
-	PlanetMapCategory* planetMapCategory = object->getPlanetMapCategory();
-	if (planetMapCategory != NULL) {
+	const PlanetMapCategory* planetMapCategory = object->getPlanetMapCategory();
+	if (planetMapCategory != nullptr) {
 		String category = planetMapCategory->getName();
 		if (category == "cantina" || category == "hotel") {
 			hasPerformanceLocationCategory = true;
@@ -740,7 +729,7 @@ bool ZoneImplementation::objectIsValidPlanetaryMapPerformanceLocation(SceneObjec
 
 	if (!hasPerformanceLocationCategory) {
 		planetMapCategory = object->getPlanetMapSubCategory();
-		if (planetMapCategory != NULL) {
+		if (planetMapCategory != nullptr) {
 			String subCategory = planetMapCategory->getName();
 			if (subCategory == "guild_theater") {
 				hasPerformanceLocationCategory = true;
@@ -776,7 +765,7 @@ void ZoneImplementation::dropSceneObject(SceneObject* object)  {
 
 	unregisterObjectWithPlanetaryMap(object);
 
-	if (oldObject != NULL && oldObject->isAiAgent()) {
+	if (oldObject != nullptr && oldObject->isAiAgent()) {
 		spawnedAiAgents.decrement();
 	}
 }
@@ -787,13 +776,13 @@ void ZoneImplementation::sendMapLocationsTo(CreatureObject* player) {
 }
 
 Reference<SceneObject*> ZoneImplementation::getNearestPlanetaryObject(SceneObject* object, const String& mapObjectLocationType) {
-	Reference<SceneObject*> planetaryObject = NULL;
+	Reference<SceneObject*> planetaryObject = nullptr;
 
 #ifndef WITH_STM
 	ReadLocker rlocker(mapLocations);
 #endif
 
-	SortedVector<MapLocationEntry>& sortedVector = mapLocations->getLocation(mapObjectLocationType);
+	const SortedVector<MapLocationEntry>& sortedVector = mapLocations->getLocation(mapObjectLocationType);
 
 	float distance = 16000.f;
 
@@ -819,10 +808,10 @@ SortedVector<ManagedReference<SceneObject*> > ZoneImplementation::getPlanetaryOb
 	ReadLocker rlocker(mapLocations);
 #endif
 
-	SortedVector<MapLocationEntry>& entryVector = mapLocations->getLocation(mapObjectLocationType);
+	const SortedVector<MapLocationEntry>& entryVector = mapLocations->getLocation(mapObjectLocationType);
 
 	for (int i = 0; i < entryVector.size(); ++i) {
-		MapLocationEntry& entry = entryVector.getUnsafe(i);
+		const MapLocationEntry& entry = entryVector.getUnsafe(i);
 		retVector.put(entry.getObject());
 	}
 
@@ -892,7 +881,7 @@ void ZoneImplementation::updateCityRegions() {
 
 		unregisterObjectWithPlanetaryMap(region);
 		registerObjectWithPlanetaryMap(region);
-		
+
 		for(int i = 0; i < city->getStructuresCount(); i++){
 			ManagedReference<StructureObject*> structure = city->getCivicStructure(i);
 			unregisterObjectWithPlanetaryMap(structure);

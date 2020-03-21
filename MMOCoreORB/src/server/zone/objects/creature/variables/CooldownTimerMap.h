@@ -10,12 +10,14 @@
 
 #include "engine/engine.h"
 
+#include "engine/util/json_utils.h"
+
 class CooldownTimer : public Variable {
 	Time timeStamp;
 
 public:
 	CooldownTimer() : Variable() {
-		//timeStamp = NULL;
+		//timeStamp = nullptr;
 	}
 
 	CooldownTimer(const Time& timestamp) : Variable() {
@@ -61,6 +63,10 @@ public:
 		return true;
 	}
 
+	friend void to_json(nlohmann::json& j, const CooldownTimer& t) {
+		j["timeStamp"] = t.timeStamp;
+	}
+
 	bool parseFromBinaryStream(ObjectInputStream* stream) {
 		Time parsed;
 
@@ -74,7 +80,7 @@ public:
 		return true;
 	}
 
-	bool isPast() {
+	bool isPast() const {
 		return timeStamp.isPast();
 	}
 
@@ -94,12 +100,14 @@ public:
 		return &timeStamp;
 	}
 
-
+	const Time* getTime() const {
+		return &timeStamp;
+	}
 };
 
 class CooldownTimerMap : public Object {
 	HashTable<String, CooldownTimer> timers;
-	Mutex cooldownMutex;
+	mutable Mutex cooldownMutex;
 
 public:
 	CooldownTimerMap() : timers(1, 1) {
@@ -122,13 +130,15 @@ public:
 		return *this;
 	}
 
-	bool isPast(const String& cooldownName) {
+	bool isPast(const String& cooldownName) const {
 		Locker locker(&cooldownMutex);
 
-		if (!timers.containsKey(cooldownName))
+		auto entry = timers.getEntry(cooldownName);
+
+		if (entry == nullptr)
 			return true;
 
-		return timers.get(cooldownName).isPast();
+		return entry->getValue().isPast();
 	}
 
 	void updateToCurrentAndAddMili(const String& cooldownName, uint64 mili) {
@@ -163,13 +173,15 @@ public:
 		cooldown->addMiliTime(mili);
 	}
 
-	Time* getTime(const String& cooldownName) {
+	const Time* getTime(const String& cooldownName) const {
 		Locker locker(&cooldownMutex);
 
-		if (!timers.containsKey(cooldownName))
-			return NULL;
+		auto entry = timers.getEntry(cooldownName);
 
-		Time* cooldown = timers.get(cooldownName).getTime();
+		if (entry == nullptr)
+			return nullptr;
+
+		const Time* cooldown = entry->getValue().getTime();
 
 		return cooldown;
 	}

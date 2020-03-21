@@ -14,12 +14,10 @@ void CharacterBuilderTerminalImplementation::loadTemplateData(SharedObjectTempla
 
 	CharacterBuilderTerminalTemplate* terminalData = dynamic_cast<CharacterBuilderTerminalTemplate*>(templateData);
 
-	if (terminalData == NULL)
+	if (terminalData == nullptr)
 		return;
 
 	rootNode = terminalData->getItemList();
-
-	//info("loaded " + String::valueOf(itemList.size()));
 }
 
 void CharacterBuilderTerminalImplementation::initializeTransientMembers() {
@@ -29,7 +27,10 @@ void CharacterBuilderTerminalImplementation::initializeTransientMembers() {
 }
 
 int CharacterBuilderTerminalImplementation::handleObjectMenuSelect(CreatureObject* player, byte selectedID) {
-	//info("entering start terminal radial call", true);
+	if (!ConfigManager::instance()->getCharacterBuilderEnabled())
+		return 1;
+
+	debug() << "entering start terminal radial call";
 
 	if (selectedID != 20) // not use object
 		return 1;
@@ -40,9 +41,12 @@ int CharacterBuilderTerminalImplementation::handleObjectMenuSelect(CreatureObjec
 }
 
 void CharacterBuilderTerminalImplementation::sendInitialChoices(CreatureObject* player) {
-	//info("entering sendInitialChoices", true);
+	if (!ConfigManager::instance()->getCharacterBuilderEnabled())
+		return;
 
-	if (rootNode == NULL) {
+	debug() << "entering sendInitialChoices";
+
+	if (rootNode == nullptr) {
 		player->sendSystemMessage("There was an error initializing the menu for this character builder terminal. Sorry for the inconvenience.");
 		return;
 	}
@@ -61,13 +65,13 @@ void CharacterBuilderTerminalImplementation::enhanceCharacter(CreatureObject* pl
 
 	ManagedReference<PlayerObject*> ghost = player->getPlayerObject();
 
-	if (ghost == NULL)
+	if (ghost == nullptr)
 		return;
 
 	for (int i = 0; i < ghost->getActivePetsSize(); i++) {
 		ManagedReference<AiAgent*> pet = ghost->getActivePet(i);
 
-		if (pet != NULL) {
+		if (pet != nullptr) {
 			Locker crossLocker(pet, player);
 
 			pm->enhanceCharacter(pet);
@@ -105,15 +109,15 @@ void CharacterBuilderTerminalImplementation::giveLanguages(CreatureObject* playe
 void CharacterBuilderTerminalImplementation::grantGlowyBadges(CreatureObject* player) {
 	CharacterBuilderTerminalTemplate* terminalTemplate = dynamic_cast<CharacterBuilderTerminalTemplate*>(templateObject.get());
 
-	if (terminalTemplate == NULL)
+	if (terminalTemplate == nullptr)
 		return;
 
 	PlayerObject* ghost = player->getPlayerObject();
 
-	if (ghost == NULL)
+	if (ghost == nullptr)
 		return;
 
-	Vector<int> ids = terminalTemplate->getGlowyBadgeIds();
+	const auto& ids = terminalTemplate->getGlowyBadgeIds();
 
 	for (int i = 0; i < ids.size(); i++) {
 		ghost->awardBadge(ids.get(i));
@@ -126,12 +130,12 @@ void CharacterBuilderTerminalImplementation::grantJediInitiate(CreatureObject* p
 
 	CharacterBuilderTerminalTemplate* terminalTemplate = dynamic_cast<CharacterBuilderTerminalTemplate*>(templateObject.get());
 
-	if (terminalTemplate == NULL)
+	if (terminalTemplate == nullptr)
 		return;
 
 	PlayerObject* ghost = player->getPlayerObject();
 
-	if (ghost == NULL)
+	if (ghost == nullptr)
 		return;
 
 	SkillManager* skillManager = server->getSkillManager();
@@ -145,7 +149,7 @@ void CharacterBuilderTerminalImplementation::grantJediInitiate(CreatureObject* p
 
 	luaVillageGmCmd->callFunction();
 
-	Vector<String> branches = terminalTemplate->getVillageBranchUnlocks();
+	const auto& branches = terminalTemplate->getVillageBranchUnlocks();
 
 	for (int i = 0; i < branches.size(); i++) {
 		String branch = branches.get(i);

@@ -50,6 +50,7 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
         /opt/local/include/mysql56/mysql
         /usr/local/mysql/include
         /usr/local/mysql/include/mysql
+	/usr/local/opt/mysql-client/include/mysql
         $ENV{ProgramFiles}/MySQL/*/include
         $ENV{SystemDrive}/MySQL/*/include)
 
@@ -87,6 +88,7 @@ ELSE (WIN32)
           /opt/local/lib/mysql5/mysql
           /opt/local/lib/mysql56/mysql
           /opt/mysql/mysql/lib/mysql
+	  /usr/local/opt/mysql-client/lib
           /opt/mysql/lib/mysql)
 ENDIF (WIN32)
 
@@ -114,7 +116,29 @@ IF (MYSQL_INCLUDE_DIR AND MYSQL_LIB_DIR)
     SET(MYSQL_CLIENT_LIBS ${MYSQL_CLIENT_LIBS} ws2_32)
   ENDIF (WIN32)
 
+  if(MYSQL_INCLUDE_DIR AND EXISTS "${MYSQL_INCLUDE_DIR}/mysql_version.h" )
+    file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql_version.h"
+            MYSQL_VERSION_H REGEX "^#define[ \t]+MYSQL_SERVER_VERSION[ \t]+\"[^\"]+\".*$" )
+    string( REGEX REPLACE
+            "^.*MYSQL_SERVER_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" MYSQL_VERSION_STRING
+            "${MYSQL_VERSION_H}" )
+
+    file( STRINGS "${MYSQL_INCLUDE_DIR}/mysql_version.h"
+            LIBMYSQL_VERSION_H REGEX "^#define[ \t]+LIBMYSQL_VERSION[ \t]+\"[^\"]+\".*$" )
+    string( REGEX REPLACE
+            "^.*LIBMYSQL_VERSION[ \t]+\"([^\"]+)\".*$" "\\1" LIBMYSQL_VERSION_STRING
+            "${LIBMYSQL_VERSION_H}" )
+  endif()
+
   IF (NOT MySql_FIND_QUIETLY_INCLUDE)
+    IF (MYSQL_VERSION_STRING)
+      MESSAGE(STATUS "Found MySQL server version: ${MYSQL_VERSION_STRING}")
+    endif()
+
+    IF (LIBMYSQL_VERSION_STRING)
+      MESSAGE(STATUS "Found MySQL library version: ${LIBMYSQL_VERSION_STRING}")
+    endif()
+
     MESSAGE(STATUS "Found MySQL Include dir: ${MYSQL_INCLUDE_DIR}  library dir: ${MYSQL_LIB_DIR}")
   ENDIF (NOT MySql_FIND_QUIETLY_INCLUDE)
 
@@ -127,5 +151,8 @@ ENDIF (MYSQL_INCLUDE_DIR AND MYSQL_LIB_DIR)
 
 MARK_AS_ADVANCED(
   MYSQL_LIB_DIR
+  MYSQL_TAOCRYPT
+  MYSQL_ZLIB
   MYSQL_INCLUDE_DIR
+  MYSQL_LIB
 )

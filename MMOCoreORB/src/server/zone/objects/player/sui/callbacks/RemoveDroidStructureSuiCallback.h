@@ -11,10 +11,11 @@
 #include "server/zone/objects/player/sui/SuiCallback.h"
 #include "server/zone/objects/tangible/components/droid/DroidMaintenanceModuleDataComponent.h"
 #include "server/zone/objects/player/sui/listbox/SuiListBox.h"
+#include "server/zone/objects/creature/ai/DroidObject.h"
 
 class RemoveDroidStructureSuiCallback : public SuiCallback, public Logger {
 
-	ManagedReference<DroidMaintenanceModuleDataComponent*> module;
+	Reference<DroidMaintenanceModuleDataComponent*> module;
 
 public:
 	RemoveDroidStructureSuiCallback(ZoneServer* serv, DroidMaintenanceModuleDataComponent* module) : SuiCallback(serv) {
@@ -24,7 +25,7 @@ public:
 	void run(CreatureObject* player, SuiBox* suiBox, uint32 eventIndex, Vector<UnicodeString>* args) {
 		bool cancelPressed = (eventIndex == 1);
 
-		if( !suiBox->isListBox() || module == NULL )
+		if( !suiBox->isListBox() || module == nullptr )
 			return;
 
 		if( cancelPressed )

@@ -13,6 +13,7 @@ import system.util.VectorMap;
 include templates.SharedObjectTemplate;
 include system.util.Vector;
 
+@json
 class Consumable extends TangibleObject {
 	protected int duration;
 	protected int filling;
@@ -125,22 +126,22 @@ class Consumable extends TangibleObject {
 		return (effectType == EFFECT_ATTRIBUTE);
 	}
 
-	@dirty
+	@read
 	public boolean isDrink() {
 		return (consumableType == DRINK);
 	}
 
-	@dirty
+	@read
 	public boolean isFood() {
 		return (consumableType == FOOD);
 	}
 
-	@dirty
+	@read
 	public boolean isForagedFood() {
 		return (foragedFood == 1);
 	}
 
-	@dirty
+	@read
 	public boolean isSpice() {
 		return (isSpiceEffect() && isFood());
 	}
@@ -150,13 +151,13 @@ class Consumable extends TangibleObject {
 		return true;
 	}
 
-	@dirty
-	public int getDuration(){
+	@read
+	public int getDuration() {
 		return duration;
 	}
 
-	@dirty
-	public string getSpeciesRestriction(){
+	@read
+	public string getSpeciesRestriction() {
 		return speciesRestriction;
 	}
 

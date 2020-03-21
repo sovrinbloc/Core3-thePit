@@ -6,13 +6,13 @@ void CreditObjectImplementation::setCashCredits(int credits, bool notifyClient) 
 	if (cashCredits == credits)
 		return;
 
-	assert(credits >= 0);
+	E3_ASSERT(credits >= 0);
 
 	cashCredits = credits;
 
 	if (notifyClient) {
 		Reference<CreatureObject*> creo = owner.get();
-		if (creo == NULL)
+		if (creo == nullptr)
 			return;
 
 		DeltaMessage *msg = new DeltaMessage(creo->getObjectID(), 'CREO', 1);
@@ -35,13 +35,13 @@ void CreditObjectImplementation::setBankCredits(int credits, bool notifyClient) 
 	if (bankCredits == credits)
 		return;
 
-	assert(credits >= 0);
+	E3_ASSERT(credits >= 0);
 
 	bankCredits = credits;
 
 	if (notifyClient) {
 		Reference<CreatureObject*> creo = owner.get();
-		if (creo == NULL)
+		if (creo == nullptr)
 			return;
 
 		DeltaMessage *msg = new DeltaMessage(creo->getObjectID(), 'CREO', 1);

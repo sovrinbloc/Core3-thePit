@@ -9,9 +9,9 @@
 
 namespace server {
 	namespace login {
-	
+
 		class LoginMessageProcessorTask : public Task {
-			ManagedReference<Message*> message;
+			Reference<Message*> message;
 
 			LoginPacketHandler* packetHandler;
 
@@ -26,24 +26,20 @@ namespace server {
 			}
 
 			void run() {
+				static Logger logger("LoginMessageProcessorTask", Logger::INFO);
+
 				try {
 					message->reset();
 
 					packetHandler->handleMessage(message);
-				} catch (PacketIndexOutOfBoundsException& e) {
-					System::out << e.getMessage();
+				} catch (const PacketIndexOutOfBoundsException& e) {
+					logger.error() << e.getMessage();
 
-				/*	StringBuffer str;
-					str << "incorrect packet - " << msg->toStringData();
-					error(str);*/
+					logger.debug() << "incorrect packet - " << *message;
+				} catch (const Exception& e) {
+					logger.error() << e.getMessage();
 
-					e.printStackTrace();
-				} catch (Exception& e) {
-					StringBuffer msg;
-					msg << e.getMessage();
-					//error(msg);
-
-					e.printStackTrace();
+					logger.debug() << "incorrect packet - " << *message;
 				}
 			}
 

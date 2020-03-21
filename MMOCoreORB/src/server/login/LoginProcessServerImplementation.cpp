@@ -11,14 +11,10 @@
 LoginProcessServerImplementation::LoginProcessServerImplementation(LoginServer* serv) {
 	server = serv;
 
-	loginPacketHandler = NULL;
+	loginPacketHandler = nullptr;
 }
 
 LoginProcessServerImplementation::~LoginProcessServerImplementation() {
-	if (loginPacketHandler != NULL) {
-		delete loginPacketHandler;
-		loginPacketHandler = NULL;
-	}
 }
 
 void LoginProcessServerImplementation::initialize() {

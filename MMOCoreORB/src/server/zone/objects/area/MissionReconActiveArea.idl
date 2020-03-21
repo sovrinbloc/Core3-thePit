@@ -10,11 +10,12 @@ import server.zone.objects.area.ActiveArea;
 import server.zone.objects.mission.ReconMissionObjective;
 include server.zone.objects.mission.events.CompleteMissionAfterCertainTimeTask;
 
+@json
 class MissionReconActiveArea extends ActiveArea {
 	@weakReference
 	protected ReconMissionObjective missionObjective;
 
-	protected CompleteMissionAfterCertainTimeTask completeTask;
+	protected transient CompleteMissionAfterCertainTimeTask completeTask;
 
 	public MissionReconActiveArea() {
 		missionObjective = null;
@@ -31,11 +32,11 @@ class MissionReconActiveArea extends ActiveArea {
 		} else {
 			ReconMissionObjective strongReference = missionObjective;
 
-			if (strongReference != null) {
+			if (strongReference) {
 				CreatureObject missionOwner = strongReference.getPlayerOwner();
 
 				if ((CreatureObject)player == missionOwner) {
-					if (completeTask == null) {
+					if (!completeTask) {
 						completeTask = new CompleteMissionAfterCertainTimeTask(strongReference);
 					}
 
@@ -62,11 +63,11 @@ class MissionReconActiveArea extends ActiveArea {
 		} else {
 			ReconMissionObjective strongReference = missionObjective;
 
-			if (strongReference != null) {
+			if (strongReference) {
 				CreatureObject missionOwner = strongReference.getPlayerOwner();
 
 				if ((CreatureObject)player == missionOwner) {
-					if (completeTask != null) {
+					if (completeTask) {
 						missionOwner.sendSystemMessage("Reconnaissance aborted.");
 						completeTask.cancel();
 					}

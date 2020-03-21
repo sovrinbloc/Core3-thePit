@@ -11,8 +11,8 @@
 #include "server/zone/packets/scene/AttributeListMessage.h"
 #include "server/zone/objects/tangible/weapon/WeaponObject.h"
 
-float PowerupObjectImplementation::MAXPRIMARY = 33.16;
-float PowerupObjectImplementation::MAXSECONDARY = 16.33;
+float PowerupObjectImplementation::MAXPRIMARY = 33.16f;
+float PowerupObjectImplementation::MAXSECONDARY = 16.33f;
 
 void PowerupObjectImplementation::fillAttributeList(AttributeListMessage* alm, CreatureObject* object) {
 
@@ -51,7 +51,7 @@ void PowerupObjectImplementation::fillWeaponAttributeList(AttributeListMessage* 
 	}
 }
 
-float PowerupObjectImplementation::getWeaponStat(const String& attrib, WeaponObject* weapon, bool withPup) {
+float PowerupObjectImplementation::getWeaponStat(const String& attrib, WeaponObject* weapon, bool withPup) const {
 	if (attrib == "pointBlankAccuracy")
 		return weapon->getPointBlankAccuracy(withPup);
 	else if (attrib == "idealRange")
@@ -88,7 +88,7 @@ void PowerupObjectImplementation::updateCraftingValues(CraftingValues* values, b
 	/// effect 1-100
 
 	Reference<PowerupTemplate*> pup = cast<PowerupTemplate*>(templateObject.get());
-	if(pup == NULL) {
+	if(pup == nullptr) {
 		return;
 	}
 
@@ -174,10 +174,10 @@ void PowerupObjectImplementation::updateCraftingValues(CraftingValues* values, b
 	}
 }
 
-float PowerupObjectImplementation::getPowerupStat(const String& attribName) {
+float PowerupObjectImplementation::getPowerupStat(const String& attribName) const {
 
 	for(int i = 0; i < modifiers.size(); ++i) {
-		PowerupStat* stat = &modifiers.get(i);
+		const PowerupStat* stat = &modifiers.get(i);
 
 		if(attribName.toLowerCase() ==
 				stat->getAttributeToModify().toLowerCase()) {

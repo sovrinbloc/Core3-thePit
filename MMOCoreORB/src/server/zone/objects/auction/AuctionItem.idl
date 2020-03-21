@@ -6,10 +6,11 @@ package server.zone.objects.auction;
 
 import engine.core.ManagedObject;
 import server.zone.objects.scene.SceneObject;
+import engine.log.Logger;
 include server.zone.objects.scene.variables.StringId;
 
-class AuctionItem extends ManagedObject {
-
+@json
+class AuctionItem extends ManagedObject implements Logger {
 	protected unsigned long vendorID;
 
 	protected unsigned long auctionedItemObjectID;
@@ -34,6 +35,9 @@ class AuctionItem extends ManagedObject {
 	protected int status;
 
 	protected boolean onBazaar;
+	
+	protected boolean isCrate;
+	protected int cratedItemType;
 
 	protected unsigned long buyerID;
 
@@ -51,6 +55,7 @@ class AuctionItem extends ManagedObject {
 	public final static int EXPIRED = 4;
 	public final static int OFFERED = 5;
 	public final static int RETRIEVED = 6;
+	public final static int DELETED = 99;
 
 	public AuctionItem(unsigned long objectid) {
 		auctionedItemObjectID = objectid;
@@ -67,6 +72,9 @@ class AuctionItem extends ManagedObject {
 		auction = true;
 
 		onBazaar = false;
+		
+		isCrate = false;
+		cratedItemType = 0;
 
 		buyerID = 0;
 		expireTime = 0;
@@ -74,9 +82,9 @@ class AuctionItem extends ManagedObject {
 		updated = false;
 
 		auctionOptions = 0;
-
-		//Logger.setLoggingName("AuctionItem");
 	}
+
+	public native void initializeTransientMembers();
 
 	/**
 	 * Compares object ids of this object with obj
@@ -96,6 +104,8 @@ class AuctionItem extends ManagedObject {
 	}
 
 	public native void notifyLoadFromDatabase();
+
+	public native boolean destroyAuctionItemFromDatabase(boolean checkAuctionMap = true, boolean deleteAuctionedObject = false);
 
 	@preLocked
 	public void setVendorID(unsigned long val) {
@@ -304,4 +314,37 @@ class AuctionItem extends ManagedObject {
 	public int getSize() {
 		return size;
 	}
+	
+	@read
+	public int getCratedItemType() {
+		return cratedItemType;
+	}
+	
+	@preLocked
+	public void setCratedItemType(int type) {
+		cratedItemType = type;
+	}
+	
+	@read
+	public boolean isFactoryCrate() {
+		return isCrate;
+	}
+	
+	@preLocked
+	public void setFactoryCrate(boolean crate) {
+		isCrate = crate;
+	}
+	
+	@preLocked
+	public void setUpdated(boolean val) {
+		updated = val;
+	}
+
+	@read
+	public boolean isUpdated() {
+		return updated;
+	}
+
+	@read
+	public native unsigned long getObjectID();
 }

@@ -21,25 +21,21 @@ TreeFile::~TreeFile() {
 
 void TreeFile::read(const String& path) {
 	setLoggingName("TreeFile " + path);
-	setLogging(true);
+	setLogLevel(Logger::INFO);
 
 	filePath = path;
 
-	File* file = new File(path);
+	File file(path);
+	FileInputStream fileStream(&file);
 
-	FileInputStream fileStream(file);
-
-	if (!file->exists()) {
+	if (!file.exists()) {
 		error("File does not exist.");
-		delete file;
 		return;
 	}
 
 	readHeader(&fileStream);
 
 	fileStream.close();
-
-	delete file;
 }
 
 void TreeFile::readHeader(FileInputStream* fileStream) {
@@ -62,8 +58,8 @@ void TreeFile::readHeader(FileInputStream* fileStream) {
 		fileStream->read((byte*) &totalRecords, 4);
 		fileStream->read((byte*) &dataOffset, 4);
 
-		//info("Found records: " + String::valueOf(totalRecords));
-		//info("Data offset at " + String::valueOf(dataOffset));
+		debug() << "Found records: " << totalRecords
+			<< " Data offset at " << dataOffset;
 
 		//Setup the file block.
 		fileStream->read((byte*) &buffer, 4);
@@ -105,7 +101,7 @@ void TreeFile::readFileBlock(FileInputStream* fileStream) {
 		tfr->setTreeFilePath(filePath);
 		bufferOffset += tfr->readFromBuffer(uncompressedData + bufferOffset);
 
-		records.add(tfr);
+		records.emplace(std::move(tfr));
 	}
 
 	delete [] uncompressedData;
@@ -117,7 +113,7 @@ void TreeFile::readNameBlock(FileInputStream* fileStream) {
 	for (int i = 0; i < totalRecords; ++i) {
 		TreeFileRecord* record = records.get(i);
 
-		if (treeArchive != NULL)
+		if (treeArchive != nullptr)
 			treeArchive->addRecord(((char*) uncompressedData) + record->getNameOffset(), record);
 	}
 

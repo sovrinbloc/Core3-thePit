@@ -6,15 +6,17 @@
 #define CHARACTERLIST_H_
 
 #include "server/db/ServerDatabase.h"
+#include "../objects/GalaxyList.h"
 #include "CharacterListEntry.h"
 
 class CharacterList : public Vector<CharacterListEntry> {
-
 	uint32 accountid;
+	String username;
 
 public:
-	CharacterList(uint32 id) {
+	CharacterList(uint32 id, String user) {
 		accountid = id;
+		username = user;
 		update();
 	}
 
@@ -23,10 +25,9 @@ public:
 	}
 
 	void update() {
-
 		removeAll();
 
-		Reference<ResultSet*> characters;
+		UniqueReference<ResultSet*> characters;
 
 		StringBuffer query;
 		query << "SELECT DISTINCT characters.character_oid, characters.account_id, characters.galaxy_id, characters.firstname, "
@@ -46,17 +47,23 @@ public:
 
 		try {
 			characters = ServerDatabase::instance()->executeQuery(query);
-		} catch (DatabaseException& e) {
+		} catch (const DatabaseException& e) {
 			System::out << "exception caught in ChracterList query" << endl;
 			System::out << e.getMessage();
 		} catch (...) {
 			System::out << "unknown exception caught in ChracterList query" << endl;
 		}
 
-		if (characters == NULL)
+		if (characters == nullptr)
 			return;
 
-		while(characters->next()) {
+		auto galaxies = GalaxyList(username);
+
+		while (characters->next()) {
+			uint32 galaxyID = characters->getInt(2);
+
+			if (!galaxies.isAllowed(galaxyID))
+				continue;
 
 			CharacterListEntry newEntry;
 			newEntry.setObjectID(characters->getUnsignedLong(0));

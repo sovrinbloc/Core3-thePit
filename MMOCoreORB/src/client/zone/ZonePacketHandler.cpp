@@ -14,7 +14,7 @@ ZonePacketHandler::ZonePacketHandler(const String& s, Zone * z) : Logger(s) {
 }
 
 void ZonePacketHandler::handleMessage(Message* pack) {
-	//info("parsing " + pack->toStringData(), true);
+	debug() << "parsing " << *pack;
 
 	sys::uint16 opcount = pack->parseShort();
 	sys::uint32 opcode = pack->parseInt();
@@ -167,17 +167,15 @@ void ZonePacketHandler::handleSceneObjectCreateMessage(Message* pack) {
 	uint32 crc = pack->parseInt();
 
 	ObjectManager* objectManager = zone->getObjectManager();
-	if (objectManager == NULL) {
-		error("object manager was NULL");
+	if (objectManager == nullptr) {
+		error("object manager was nullptr");
 		return;
 	}
 
 	SceneObject* object = objectManager->createObject(crc, objectID);
 
-	if (object == NULL) {
-		StringBuffer infoMsg;
-		infoMsg << "unknown crc 0x" << hex << crc << " received in SceneObjectCreateMessage";
-		client->debug(infoMsg.toString());
+	if (object == nullptr) {
+		client->debug() << "unknown crc 0x" << hex << crc << " received in SceneObjectCreateMessage";
 		return;
 	}
 
@@ -206,7 +204,7 @@ void ZonePacketHandler::handleBaselineMessage(Message* pack) {
 
 	SceneObject* object = zone->getObject(oid);
 
-	if (object == NULL) {
+	if (object == nullptr) {
 		client->debug("received baseline for null object");
 		return;
 	}
@@ -253,7 +251,7 @@ void ZonePacketHandler::handleUpdateTransformMessage(Message* pack) {
 
 	SceneObject* scno = zone->getObject(objid);
 
-	if (scno != NULL) {
+	if (scno != nullptr) {
 		Locker _locker(scno);
 		scno->setPosition(x, z, y);
 		//scno->info("updating position");
@@ -327,7 +325,7 @@ void ZonePacketHandler::handleObjectControllerMessage(Message* pack) {
 
 	SceneObject* object = zone->getObject(objectID);
 
-	if (object != NULL)
+	if (object != nullptr)
 		zone->getObjectController()->handleObjectController(object, header1, header2, pack);
 }
 
@@ -340,21 +338,21 @@ void ZonePacketHandler::handleUpdateContainmentMessage(Message* pack) {
 	SceneObject* object = zone->getObject(obj);
 	SceneObject* parent = zone->getObject(par);
 
-	if (object == NULL)
+	if (object == nullptr)
 		return;
 
 	if (par == 0) {
 		// remove object from parent
 		parent = object->getParent();
 
-		if (parent != NULL) {
+		if (parent != nullptr) {
 			parent->removeObject(object);
 		} else {
-			object->setParent(NULL);
+			object->setParent(nullptr);
 		}
 
 		return;
-	} else if (parent == NULL) {
+	} else if (parent == nullptr) {
 		return;
 	}
 

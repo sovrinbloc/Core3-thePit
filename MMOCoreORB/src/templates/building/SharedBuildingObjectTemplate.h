@@ -29,10 +29,12 @@ class SharedBuildingObjectTemplate : public SharedStructureObjectTemplate {
 
 	int factionBaseType;
 
+	float ejectDistance;
+
 	Vector<SignTemplate> shopSigns;
 
 public:
-	SharedBuildingObjectTemplate() : medicalRating(0), publicStructure(false), alwaysPublic(false), factionBaseType(0) {
+	SharedBuildingObjectTemplate() : medicalRating(0), publicStructure(false), alwaysPublic(false), factionBaseType(0), ejectDistance(2.5f) {
 	}
 
 	~SharedBuildingObjectTemplate() {
@@ -61,7 +63,7 @@ public:
 		return alwaysPublic;
 	}
 
-	inline ChildObject* getSign() {
+	inline const ChildObject* getSign() const {
 		return &sign;
 	}
 
@@ -77,11 +79,11 @@ public:
 		return &childCreatureObjects.get(indx);
 	}
 
-	inline String getTerrainModificationFile() const {
+	inline const String& getTerrainModificationFile() const {
 		return terrainModificationFileName.get();
 	}
 
-	inline String getInteriorLayoutFileName() const {
+	inline const String& getInteriorLayoutFileName() const {
 		return interiorLayoutFileName.get();
 	}
 
@@ -97,8 +99,12 @@ public:
 		return shopSigns.size();
 	}
 
-	inline SignTemplate* getShopSign(int idx) const {
+	inline const SignTemplate* getShopSign(int idx) const {
 		return &shopSigns.get(idx);
+	}
+
+	inline float getEjectDistance() const {
+		return ejectDistance;
 	}
 };
 

@@ -5,6 +5,8 @@
  *      Author: theanswer
  */
 
+#include "server/zone/objects/creature/CreatureObject.h"
+
 #include "server/zone/objects/mission/MissionObject.h"
 #include "server/zone/objects/mission/MissionObjective.h"
 #include "server/zone/packets/mission/MissionObjectMessage6.h"
@@ -13,13 +15,12 @@
 #include "server/zone/ZoneServer.h"
 #include "server/zone/objects/group/GroupObject.h"
 
-
 void MissionObjectImplementation::initializeTransientMembers() {
 	SceneObjectImplementation::initializeTransientMembers();
 
 	setLoggingName("MissionObject");
 
-	if(waypointToMission == NULL)
+	if(waypointToMission == nullptr)
 		waypointToMission = createWaypoint();
 }
 
@@ -39,7 +40,7 @@ void MissionObjectImplementation::setRefreshCounter(int ctr, bool notifyClient) 
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateRefreshCount(ctr);
 		delta->close();
@@ -59,7 +60,7 @@ void MissionObjectImplementation::setTypeCRC(uint32 crc, bool notifyClient) {
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateTypeCRC(crc);
 		delta->close();
@@ -76,7 +77,7 @@ void MissionObjectImplementation::setMissionDescription(const String& file, cons
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateDescriptionStf(&missionDescription);
 		delta->close();
@@ -99,7 +100,7 @@ void MissionObjectImplementation::setMissionTitle(const String& file, const Stri
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateTitleStf(&missionTitle);
 		delta->close();
@@ -116,7 +117,7 @@ void MissionObjectImplementation::setMissionTargetName(const String& target, boo
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateTargetName(target);
 		delta->close();
@@ -139,7 +140,7 @@ void MissionObjectImplementation::setMissionDifficulty(int diffLevel, int displa
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateDifficultyLevel(difficultyDisplay);
 		delta->close();
@@ -159,7 +160,7 @@ void MissionObjectImplementation::setRewardCredits(int creds, bool notifyClient)
 
 	ManagedReference<CreatureObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE).castTo<CreatureObject*>();
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		if (player->isGrouped()) {
 			Reference<GroupObject*> group = player->getGroup();
 
@@ -197,7 +198,7 @@ void MissionObjectImplementation::setTargetTemplate(SharedObjectTemplate* templa
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateTemplateCRC(targetTemplate->getClientObjectCRC());
 		delta->close();
@@ -220,7 +221,7 @@ WaypointObject* MissionObjectImplementation::createWaypoint() {
 }
 
 void MissionObjectImplementation::updateMissionLocation() {
-	if (getMissionObjective() == NULL) {
+	if (getMissionObjective() == nullptr) {
 		return;
 	}
 
@@ -228,14 +229,14 @@ void MissionObjectImplementation::updateMissionLocation() {
 	
 	ManagedReference<WaypointObject* > waypointToMission = this->waypointToMission;
 
-	if (playerCreature != NULL && waypointToMission != NULL) {
+	if (playerCreature != nullptr && waypointToMission != nullptr) {
 		MissionObjectDeltaMessage3* dmiso3 = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		dmiso3->updateWaypoint(waypointToMission);
 		dmiso3->close();
 
 		playerCreature->sendMessage(dmiso3);
 
-		if (playerCreature->isGrouped() && playerCreature->getGroup() != NULL) {
+		if (playerCreature->isGrouped() && playerCreature->getGroup() != nullptr) {
 			Reference<GroupObject*> group = playerCreature->getGroup();
 
 			Core::getTaskManager()->executeTask([group, playerCreature] () {
@@ -250,7 +251,7 @@ void MissionObjectImplementation::updateMissionLocation() {
 void MissionObjectImplementation::updateToDatabaseAllObjects(bool startTask) {
 	IntangibleObjectImplementation::updateToDatabaseAllObjects(startTask);
 
-	if (missionObjective != NULL) {
+	if (missionObjective != nullptr) {
 		missionObjective->updateToDatabase();
 	}
 }
@@ -259,12 +260,12 @@ void MissionObjectImplementation::destroyObjectFromDatabase(bool destroyContaine
 	IntangibleObjectImplementation::destroyObjectFromDatabase(destroyContainedObjects);
 
 	if (destroyContainedObjects) {
-		if (waypointToMission != NULL) {
+		if (waypointToMission != nullptr) {
 			Locker clocker(waypointToMission, _this.getReferenceUnsafeStaticCast());
 			waypointToMission->destroyObjectFromDatabase(true);
 		}
 
-		if (missionObjective != NULL) {
+		if (missionObjective != nullptr) {
 			Locker clocker(missionObjective, _this.getReferenceUnsafeStaticCast());
 			missionObjective->destroyObjectFromDatabase();
 		}
@@ -282,7 +283,7 @@ void MissionObjectImplementation::setStartPosition(float posX, float posY, const
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateStartPosition(posX, posY, planet.hashCode());
 		delta->close();
@@ -309,7 +310,7 @@ void MissionObjectImplementation::setEndPosition(float posX, float posY, const S
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateDestination(posX, posY, endPlanet.hashCode());
 		delta->close();
@@ -326,7 +327,7 @@ void MissionObjectImplementation::setCreatorName(const String& name, bool notify
 
 	ManagedReference<SceneObject*> player = getParentRecursively(SceneObjectType::PLAYERCREATURE);
 
-	if (player != NULL) {
+	if (player != nullptr) {
 		MissionObjectDeltaMessage3* delta = new MissionObjectDeltaMessage3(_this.getReferenceUnsafeStaticCast());
 		delta->updateCreator();
 		delta->close();

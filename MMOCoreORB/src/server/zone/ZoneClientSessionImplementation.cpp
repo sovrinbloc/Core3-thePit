@@ -16,8 +16,9 @@ ZoneClientSessionImplementation::ZoneClientSessionImplementation(BaseClientProxy
 		:  ManagedObjectImplementation() {
 	ZoneClientSessionImplementation::session = session;
 
-	player = NULL;
-	sessionID = 0;
+	ipAddress = session != nullptr ? session->getIPAddress() : "";
+
+	player = nullptr;
 
 	accountID = 0;
 
@@ -55,7 +56,7 @@ void ZoneClientSessionImplementation::disconnect(bool doLock) {
 	ManagedReference<CreatureObject*> player = this->player.get();
 	Reference<ZoneClientSession*> zoneClientSession;
 	if (session->hasError() || !session->isClientDisconnected()) {
-		if (player != NULL) {
+		if (player != nullptr) {
 			zoneClientSession = player->getClient();
 
 			if (zoneClientSession == _this.getReferenceUnsafeStaticCast()) {
@@ -66,7 +67,7 @@ void ZoneClientSessionImplementation::disconnect(bool doLock) {
 		}
 
 		closeConnection(true, false);
-	} else if (player != NULL) {
+	} else if (player != nullptr) {
 		zoneClientSession = player->getClient();
 
 		Reference<PlayerObject*> ghost = player->getSlottedObject("ghost").castTo<PlayerObject*>();
@@ -95,7 +96,7 @@ void ZoneClientSessionImplementation::disconnect(bool doLock) {
 			closeConnection(true, true);
 		}
 	}
-	
+
 
 	/*info("references left " + String::valueOf(_this.getReferenceUnsafeStaticCast()->getReferenceCount()), true);
 	_this.getReferenceUnsafeStaticCast()->printReferenceHolders();*/
@@ -105,21 +106,21 @@ void ZoneClientSessionImplementation::setPlayer(CreatureObject* playerCreature) 
 	ManagedReference<CreatureObject*> player = this->player.get();
 
 	if (playerCreature != player) {
-		if (playerCreature == NULL && player != NULL) {
+		if (playerCreature == nullptr && player != nullptr) {
 			// TODO: find a proper way to acqure zone server
 			ZoneServer* zoneServer = player->getZoneServer();
 
-			if (zoneServer != NULL) {
+			if (zoneServer != nullptr) {
 				zoneServer->decreaseOnlinePlayers();
 
 				zoneServer->getPlayerManager()->decreaseOnlineCharCount(_this.getReferenceUnsafeStaticCast());
 
 			}
-		} else if (playerCreature != NULL) {
+		} else if (playerCreature != nullptr) {
 			// TODO: find a proper way to acqure zone server
 			ZoneServer* zoneServer = playerCreature->getZoneServer();
 
-			if (zoneServer != NULL) {
+			if (zoneServer != nullptr) {
 				zoneServer->increaseOnlinePlayers();
 			}
 		}
@@ -133,26 +134,26 @@ void ZoneClientSessionImplementation::closeConnection(bool lockPlayer, bool doLo
 	Locker locker(_this.getReferenceUnsafeStaticCast());
 	Reference<BaseClientProxy* > session = this->session;
 
-	if (session == NULL)
+	if (session == nullptr)
 		return;
 
 	session->info("disconnecting client \'" + session->getIPAddress() + "\'");
 
-	ZoneServer* server = NULL;
+	ZoneServer* server = nullptr;
 	ManagedReference<CreatureObject*> play = player.get();
 
-	if (play != NULL) {
+	if (play != nullptr) {
 		server = play->getZoneServer();
 
 		Reference<ClearClientEvent*> task = new ClearClientEvent(play, _this.getReferenceUnsafeStaticCast());
 		Core::getTaskManager()->executeTask(task);
 
-		setPlayer(NULL); // we must call setPlayer to increase/decrease online player counter
+		setPlayer(nullptr); // we must call setPlayer to increase/decrease online player counter
 	}
 
 	session->disconnect();
 
-	if (server != NULL) {
+	if (server != nullptr) {
 		server->addTotalSentPacket(session->getSentPacketCount());
 		server->addTotalResentPacket(session->getResentPacketCount());
 	}
@@ -178,52 +179,40 @@ void ZoneClientSessionImplementation::error(const String& msg) {
 	session->error(msg);
 }
 
-String ZoneClientSessionImplementation::getAddress() {
+String ZoneClientSessionImplementation::getAddress() const {
 	return session->getAddress();
+}
+
+String ZoneClientSessionImplementation::getIPAddress() const {
+	return ipAddress.isEmpty() ? "0.0.0.0" : ipAddress;
 }
 
 BaseClientProxy* ZoneClientSessionImplementation::getSession() {
 	return session;
 }
 
-int ZoneClientSessionImplementation::getCharacterCount(int galaxyId) {
+int ZoneClientSessionImplementation::getCharacterCount(int galaxyId) const {
 	int count = 0;
 
 	for (int i = 0; i < characters.size(); ++i) {
-		if (characters.elementAt(i).getKey() == galaxyId)
+		if (characters.getKey(i) == galaxyId)
 			++count;
 	}
 
 	for (int i = 0; i < bannedCharacters.size(); ++i) {
-		if (bannedCharacters.elementAt(i).getKey() == galaxyId)
+		if (bannedCharacters.getKey(i) == galaxyId)
 			++count;
 	}
 
 	return count;
 }
 
-bool ZoneClientSessionImplementation::hasCharacter(uint64 cid, unsigned int galaxyId) {
-/*	int lowerBound = characters.lowerBound(VectorMapEntry<uint32, uint64>(galaxyId));
-
-	if (lowerBound < 0)
-		return false;
-
-	for (int i = lowerBound; i < characters.size(); ++i) {
-		if (characters.elementAt(i).getKey() != galaxyId)
-			break;
-
-		if (characters.elementAt(i).getValue() == cid)
-			return true;
-	}
-	
-	*/
-	
+bool ZoneClientSessionImplementation::hasCharacter(uint64 cid, unsigned int galaxyId) const {
 	for (int i = 0; i < characters.size(); ++i) {
-		if (characters.elementAt(i).getKey() == galaxyId && 
-			characters.elementAt(i).getValue() == cid)
+		if (characters.getKey(i) == galaxyId &&
+			characters.get(i) == cid)
 			return true;
 	}
-	
 
 	return false;
 }

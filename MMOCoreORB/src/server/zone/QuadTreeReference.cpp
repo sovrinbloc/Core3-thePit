@@ -7,11 +7,13 @@
 
 #include "QuadTreeReference.h"
 
+using namespace server::zone;
+
 bool QuadTreeReference::toBinaryStream(ObjectOutputStream* stream) {
 	//if ()
-	/*Vector<ManagedReference<QuadTreeEntry*> >* vector = NULL;
+	/*Vector<ManagedReference<QuadTreeEntry*> >* vector = nullptr;
 
-	if (get() != NULL)
+	if (get() != nullptr)
 		vector = get()->getContainedEntries();
 	else
 		vector = new Vector<ManagedReference<QuadTreeEntry*> >();

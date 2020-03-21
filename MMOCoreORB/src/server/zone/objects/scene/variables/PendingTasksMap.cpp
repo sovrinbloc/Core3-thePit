@@ -14,12 +14,12 @@ using namespace server::zone::objects::scene;
 
 PendingTasksMap::PendingTasksMap() : taskMap(1, 1), orderedTasks(1, 1) {
 	taskMap.setNoDuplicateInsertPlan();
-	taskMap.setNullValue(NULL);
+	taskMap.setNullValue(nullptr);
 }
 
 PendingTasksMap::PendingTasksMap(const PendingTasksMap& p) : Object(), taskMap(p.taskMap), orderedTasks(p.orderedTasks) {
 	taskMap.setNoDuplicateInsertPlan();
-	taskMap.setNullValue(NULL);
+	taskMap.setNullValue(nullptr);
 }
 
 int PendingTasksMap::put(const String& name, Task* task) {
@@ -40,7 +40,7 @@ bool PendingTasksMap::contains(const String& name) {
 	return taskMap.contains(name);
 }
 
-Reference<Task*> PendingTasksMap::get(const String& name) {
+Reference<Task*> PendingTasksMap::get(const String& name) const {
 	Locker guard(&mutex);
 
 	return taskMap.get(name);
@@ -58,7 +58,7 @@ void PendingTasksMap::putOrdered(Task* task, server::zone::objects::scene::Scene
 	}
 }
 
-int PendingTasksMap::getOrderedTasksSize() {
+int PendingTasksMap::getOrderedTasksSize() const {
 	return orderedTasks.size();
 }
 
@@ -91,5 +91,4 @@ Reference<Task*> PendingTasksMap::getNextOrderedTask() {
 
 	return task;
 }
-
 

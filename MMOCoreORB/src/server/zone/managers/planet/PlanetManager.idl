@@ -10,6 +10,7 @@ import server.zone.ZoneProcessServer;
 import engine.log.Logger;
 import system.util.VectorMap;
 import system.util.SynchronizedVectorMap;
+import system.util.SynchronizedSortedVector;
 import server.zone.objects.region.CityRegion;
 import server.zone.managers.weather.WeatherManager;
 import server.zone.managers.gcw.GCWManager;
@@ -27,7 +28,7 @@ include server.zone.objects.building.ShuttleMap;
 include server.zone.managers.planet.ClientPoiDataTable;
 include server.zone.managers.planet.TravelFare;
 import system.thread.Mutex;
-import engine.util.u3d.CloseObjectsVector;
+import server.zone.CloseObjectsVector;
 include engine.util.u3d.Vector3;
 include server.zone.managers.collision.IntersectionResults;
 include server.zone.objects.pathfinding.NavArea;
@@ -80,6 +81,12 @@ class PlanetManager extends ManagedService implements Logger {
 	@dereferenced
 	protected transient SynchronizedVectorMap<string, NavArea> navMeshAreas;
 
+	@dereferenced
+	protected transient SynchronizedSortedVector<unsigned long> spawnedEventObjects;
+
+	@dereferenced
+	protected transient SynchronizedSortedVector<unsigned long> spawnedEventStructures;
+
 	public PlanetManager(Zone planet, ZoneProcessServer srv) {
 		zone = planet;
 		server = srv;
@@ -114,6 +121,9 @@ class PlanetManager extends ManagedService implements Logger {
 		travelFares.setNoDuplicateInsertPlan();
 
 		planetTravelPointList = new PlanetTravelPointList();
+
+		spawnedEventObjects.setNoDuplicateInsertPlan();
+		spawnedEventStructures.setNoDuplicateInsertPlan();
 	}
 
 	@local
@@ -180,7 +190,7 @@ class PlanetManager extends ManagedService implements Logger {
 
 	public native boolean isSpawningPermittedAt(float x, float y, float margin = 0);
 
-	public native boolean isBuildingPermittedAt(float x, float y, SceneObject objectTryingToBuild = null, float margin = 0);
+	public native boolean isBuildingPermittedAt(float x, float y, SceneObject objectTryingToBuild = null, float margin = 0, boolean checkFootprint = true);
 
 	public native boolean isCampingPermittedAt(float x, float y, float margin);
 
@@ -189,7 +199,7 @@ class PlanetManager extends ManagedService implements Logger {
 
 	public native boolean isInRangeWithPoi(float x, float y, float range);
 
-	public native boolean isInObjectsNoBuildZone(float x, float y, float extraMargin);
+	public native boolean isInObjectsNoBuildZone(float x, float y, float extraMargin, boolean checkFootprint = true);
 
 	/**
 	 * Gets the cost to travel via shuttleport/starport to the destination planet.
@@ -350,4 +360,16 @@ class PlanetManager extends ManagedService implements Logger {
 	public native void addPlayerCityTravelPoint(PlanetTravelPoint ptp);
 
 	public native void removePlayerCityTravelPoint(final string cityName);
+
+	public void addEventObject(unsigned long objectID) {
+		spawnedEventObjects.put(objectID);
+	}
+
+	public void addEventStructure(unsigned long objectID) {
+		spawnedEventStructures.put(objectID);
+	}
+
+	public native int destroyEventObject(unsigned long objectID);
+
+	public native int destroyAllEventObjects();
 }

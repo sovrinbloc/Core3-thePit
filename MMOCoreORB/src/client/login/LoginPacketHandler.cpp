@@ -10,7 +10,7 @@
 #include "LoginPacketHandler.h"
 
 void LoginPacketHandler::handleMessage(Message* pack) {
-	//info("parsing " + pack->toStringData());
+	debug() << "parsing " << *pack;
 
 	sys::uint16 opcount = pack->parseShort();
 	sys::uint32 opcode = pack->parseInt();
@@ -77,7 +77,7 @@ void LoginPacketHandler::handleEnumerateCharacterId(Message* pack) {
 
 	uint32 characters = pack->parseInt();
 
-	if (loginSession == NULL)
+	if (loginSession == nullptr)
 		return;
 
 	if (characters == 0) {

@@ -21,19 +21,19 @@ namespace zone {
 	namespace object {
 
 	class ObjectManager : public DOBObjectManager, public Singleton<ObjectManager>, public Object {
-		ManagedReference<ZoneProcessServer*> server;
+		Reference<ZoneProcessServer*> server;
 
-		TemplateManager* templateManager;
+		TemplateManager* templateManager = nullptr;
 
-		int galaxyId;
+		int galaxyId = 0;
 		Reference<ResultSet*> charactersSaved;
 
 		AtomicInteger saveCounter;
 
 		Reference<DeleteCharactersTask*> deleteCharactersTask;
-		
-		static uint32 serverObjectCrcHashCode;
-		static uint32 _classNameHashCode;
+
+		static const uint32 serverObjectCrcHashCode;
+		static const uint32 _classNameHashCode;
 
 	public:
 		SceneObjectFactory<SceneObject* (), uint32> objectFactory;
@@ -54,10 +54,10 @@ namespace zone {
 
 
 	public:
-		ObjectManager();
+		ObjectManager(bool initializeTemplates = true);
 		~ObjectManager();
 
-		bool contains(uint32 objectCRC) {
+		bool contains(uint32 objectCRC) const {
 			return objectFactory.containsObject(objectCRC);
 		}
 
@@ -105,8 +105,8 @@ namespace zone {
 
 		void shutdown();
 
-		bool isObjectUpdateInProcess() {
-			return objectUpdateInProcess;
+		bool isObjectUpdateInProgress() const {
+			return objectUpdateInProgress;
 		}
 
 		ObjectDatabase* loadTable(const String& database, uint64 objectID = 0);
@@ -117,23 +117,21 @@ namespace zone {
 			server = srv;
 		}
 
-		template<typename ClassType> void getPersistentObjectsSerializedVariable(const uint32& variableHashCode, ClassType* address, uint64 objectID) {
+		template<typename ClassType> void getPersistentObjectsSerializedVariable(const uint32 variableHashCode, ClassType* address, uint64 objectID) {
 			uint16 tableID = (uint16)(objectID >> 48);
 
 			LocalDatabase* db = databaseManager->getDatabase(tableID);
 
-			if (db == NULL || !db->isObjectDatabase())
+			if (db == nullptr || !db->isObjectDatabase())
 				return;
 
 			ObjectDatabase* database = cast<ObjectDatabase*>( db);
 
 			ObjectInputStream objectData(500);
 
-			if (database->getData(objectID, &objectData)) {
+			if (database->getData(objectID, &objectData, berkeley::LockMode::READ_UNCOMMITED, false, true)) {
 				return;
 			}
-
-			Locker _locker(this);
 
 			try {
 				if (!Serializable::getVariable<ClassType>(variableHashCode, address, &objectData)) {

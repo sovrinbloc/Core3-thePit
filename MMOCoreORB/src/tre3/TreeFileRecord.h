@@ -26,7 +26,7 @@ class TreeFileRecord : public Object, public Logger {
 public:
 	TreeFileRecord() : Object(), Logger(), checksum(0), uncompressedSize(0), fileOffset(0), compressionType(0), compressedSize(0), nameOffset(0) {
 		setLoggingName("TreeFileRecord");
-		setLogging(true);
+		setLogging(false);
 
 		memset(md5Sum, 0, 16);
 	}
@@ -43,7 +43,7 @@ public:
 		memcpy(md5Sum, tfr.md5Sum, 16);
 
 		setLoggingName("TreeFileRecord " + recordName);
-		setLogging(true);
+		setLogging(false);
 	}
 
 	TreeFileRecord& operator= (const TreeFileRecord& tfr) {
@@ -107,14 +107,12 @@ public:
 	}
 
 	byte* getBytes() {
-		File* file = new File(treeFilePath);
+		File file(treeFilePath);
+		FileInputStream fileStream(&file);
 
-		FileInputStream fileStream(file);
-
-		if (!file->exists()) {
+		if (!file.exists()) {
 			error("Tree File does not exist: " + treeFilePath);
-			delete file;
-			return NULL;
+			return nullptr;
 		}
 
 		fileStream.skip(fileOffset);
@@ -128,12 +126,10 @@ public:
 
 		fileStream.close();
 
-		delete file;
-
 		return buffer;
 	}
 
-	String toString() {
+	String toString() const {
 		StringBuffer str;
 		str << "Checksum: " << checksum;
 		str << " UncompressedSize: " << uncompressedSize;
@@ -149,15 +145,15 @@ public:
 		memcpy(&md5Sum, sum, 16);
 	}
 
-	inline uint32 getNameOffset() {
+	inline uint32 getNameOffset() const {
 		return nameOffset;
 	}
 
-	inline uint32 getCompressionType() {
+	inline uint32 getCompressionType() const {
 		return compressionType;
 	}
 
-	inline uint32 getUncompressedSize() {
+	inline uint32 getUncompressedSize() const {
 		return uncompressedSize;
 	}
 
@@ -165,7 +161,7 @@ public:
 		recordName = name;
 	}
 
-	inline String& getRecordName() {
+	inline const String& getRecordName() const {
 		return recordName;
 	}
 

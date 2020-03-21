@@ -5,6 +5,7 @@
 #ifndef DATATRANSFORMWITHPARENT_H_
 #define DATATRANSFORMWITHPARENT_H_
 
+#include "server/zone/objects/scene/WorldCoordinates.h"
 #include "ObjectControllerMessage.h"
 #include "server/zone/ZoneServer.h"
 #include "server/zone/objects/creature/CreatureObject.h"
@@ -20,7 +21,7 @@
 class DataTransformWithParent : public ObjectControllerMessage {
 public:
 	DataTransformWithParent(SceneObject* creo)
-: ObjectControllerMessage(creo->getObjectID(), 0x1B, 0xF1) {
+		: ObjectControllerMessage(creo->getObjectID(), 0x1B, 0xF1) {
 
 		insertInt(creo->getMovementCounter());
 
@@ -69,10 +70,10 @@ public:
 
 		ManagedReference<CreatureObject*> player = client->getPlayer();
 
-		if (player != NULL) {
+		if (player != nullptr) {
 			Zone* zone = player->getZone();
 
-			if (zone != NULL) {
+			if (zone != nullptr) {
 				String zoneName = zone->getZoneName();
 
 				setCustomTaskQueue(zoneName);
@@ -97,7 +98,7 @@ public:
 
 		parsedSpeed = message->parseFloat();
 
-		//info("datatransform with parent", true);
+		debug("datatransform with parent parsed");
 	}
 
 	void bounceBack(CreatureObject* object, ValidatedPosition& pos) {
@@ -108,9 +109,9 @@ public:
 	}
 
 	void run() {
-		ManagedReference<CreatureObject*> object = client->getPlayer().get();
+		Reference<CreatureObject*> object = client->getPlayer().get();
 
-		if (object == NULL)
+		if (object == nullptr)
 			return;
 
 		int posture = object->getPosture();
@@ -139,7 +140,7 @@ public:
 				ManagedReference<SceneObject*> currentParent = object->getParent().get();
 				bool light = objectControllerMain->getPriority() != 0x23;
 
-				if (currentParent != NULL)
+				if (currentParent != nullptr)
 					object->updateZoneWithParent(currentParent, light);
 				else
 					object->updateZone(light);
@@ -150,7 +151,7 @@ public:
 	void updatePosition(CreatureObject* object) {
 		PlayerObject* ghost = object->getPlayerObject();
 
-		if (ghost == NULL)
+		if (ghost == nullptr)
 			return;
 
 		if (std::isnan(positionX) || std::isnan(positionY) || std::isnan(positionZ))
@@ -167,13 +168,13 @@ public:
 
 		if (positionX > 1024.0f || positionX < -1024.0f || positionY > 1024.0f || positionY < -1024.0f) {
 			StringBuffer msg;
-			msg << "position out of bounds cell:[" << parent << "]";
+			msg << "position out of bounds cell:[" << parent << "] " << positionX << " " << positionY;
 			object->error(msg.toString());
 
 			return;
 		}
 
-		if (object->getZone() == NULL)
+		if (object->getZone() == nullptr)
 			return;
 
 		if (object->isRidingMount()) {
@@ -193,36 +194,29 @@ public:
 			return;
 		}*/
 
-		ManagedReference<SceneObject*> newParent = server->getZoneServer()->getObject(parent, true);
+		Reference<CellObject*> newParent = server->getZoneServer()->getObject(parent, true).castTo<CellObject*>();
 
-		if (newParent == NULL)
+		if (newParent == nullptr)
 			return;
 
-		if (!newParent->isCellObject())
-			return;
+		Reference<SceneObject*> parentSceneObject = newParent->getParent().get();
 
-		ManagedReference<SceneObject*> parentSceneObject = newParent->getParent().get();
-
-		if (parentSceneObject == NULL)
+		if (parentSceneObject == nullptr)
 			return;
 
 		BuildingObject* building = parentSceneObject->asBuildingObject();
 
-		if (building == NULL)
+		if (building == nullptr)
 			return;
 
-		ManagedReference<SceneObject*> par = object->getParent().get();
+		Reference<SceneObject*> par = object->getParent().get();
 
-		if (par != NULL && par->isShipObject())
+		if (par != nullptr && par->isShipObject())
 			return;
-
-		/*StringBuffer posMsg;
-		posMsg << "posX: " << positionX << " posZ: " << positionZ << " posY:" << positionY;
-		object->info(posMsg.toString(), true);*/
 
 		ManagedReference<PlayerManager*> playerManager = server->getPlayerManager();
 
-		if (playerManager == NULL)
+		if (playerManager == nullptr)
 			return;
 
 		ValidatedPosition pos;
@@ -231,7 +225,7 @@ public:
 		if (!ghost->hasGodMode()) {
 			SceneObject* inventory = object->getSlottedObject("inventory");
 
-			if (inventory != NULL && inventory->getCountableObjectsRecursive() > inventory->getContainerVolumeLimit() + 1) {
+			if (inventory != nullptr && inventory->getCountableObjectsRecursive() > inventory->getContainerVolumeLimit() + 1) {
 				object->sendSystemMessage("Inventory Overloaded - Cannot Move");
 				bounceBack(object, pos);
 				return;
@@ -241,9 +235,32 @@ public:
 			}
 		}
 
-		Reference<Vector<float>* > collisionPoints = CollisionManager::getCellFloorCollision(positionX, positionY, cast<CellObject*>(newParent.get()));
+		if ( par != newParent) {
+			CellObject* currentCell = par.castTo<CellObject*>();
+			const PortalLayout *layout = building->getObjectTemplate()->getPortalLayout();
+			if (layout == nullptr)
+				return;
 
-		if (collisionPoints == NULL) {
+			const CellProperty *cellProperty = layout->getCellProperty(newParent->getCellNumber());
+			if (!cellProperty->hasConnectedCell(currentCell != nullptr ? currentCell->getCellNumber() : 0)) {
+				String zoneName = object->getZone()->getZoneName();
+
+				object->error() << object->getObjectID() << " Attempted to change parents to a cell not connected to the previous parent: "
+					<< "X: " << positionX << " Y: " << positionY << " Z: " << positionZ << " zone:" << zoneName << " parentID: " << parent;
+//				for (int i : cellProperty->getConnectedCells()) {
+//					buf << "ConnectedCell: " << i << endl;
+//				}
+
+				bounceBack(object, pos);
+				return;
+			}
+		}
+
+		CellObject* cell = newParent;
+
+		UniqueReference<Vector<float>*> collisionPoints(CollisionManager::getCellFloorCollision(positionX, positionY, cell));
+
+		if (collisionPoints == nullptr) {
 			bounceBack(object, pos);
 			return;
 		}
@@ -268,7 +285,7 @@ public:
 			return;
 		}
 
-		ContainerPermissions* perms = newParent->getContainerPermissions();
+		auto perms = newParent->getContainerPermissions();
 
 		if (!perms->hasInheritPermissionsFromParent()) {
 			if (!newParent->checkContainerPermission(object, ContainerPermissions::WALKIN)) {
@@ -276,6 +293,15 @@ public:
 
 				return;
 			}
+		}
+
+		WorldCoordinates coords(Vector3(positionX, positionY, positionZ), cell);
+		float distance = coords.getWorldPosition().squaredDistanceTo(object->getWorldPosition());
+		if (distance > 21 * 21) {
+			object->info("bouncing back with distance: " + String::valueOf(distance));
+			bounceBack(object, pos);
+
+			return;
 		}
 
 		if (playerManager->checkSpeedHackFirstTest(object, parsedSpeed, pos, 1.1f) != 0)

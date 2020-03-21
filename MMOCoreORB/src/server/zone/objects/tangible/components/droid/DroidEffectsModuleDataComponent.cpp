@@ -24,23 +24,26 @@ DroidEffectsModuleDataComponent::DroidEffectsModuleDataComponent() {
 	}
 
 }
+
 DroidEffectsModuleDataComponent::~DroidEffectsModuleDataComponent() {
 
 }
-String DroidEffectsModuleDataComponent::getModuleName() {
+
+String DroidEffectsModuleDataComponent::getModuleName() const {
 	return String("effects_module");
 }
+
 void DroidEffectsModuleDataComponent::initializeTransientMembers() {
 
 	// Pull module stat from parent sceno
 	DroidComponent* droidComponent = cast<DroidComponent*>(getParent());
-	if (droidComponent == NULL) {
+	if (droidComponent == nullptr) {
 		info("droidComponent was null");
 		return;
 	}
 
-	ManagedReference<DroidEffectsModuleTemplate*> moduleTemplate = cast<DroidEffectsModuleTemplate*>(droidComponent->getObjectTemplate());
-	if (moduleTemplate == NULL){
+	Reference<DroidEffectsModuleTemplate*> moduleTemplate = cast<DroidEffectsModuleTemplate*>(droidComponent->getObjectTemplate());
+	if (moduleTemplate == nullptr){
 		info("Module was null");
 		return;
 	}
@@ -62,7 +65,7 @@ void DroidEffectsModuleDataComponent::fillAttributeList(AttributeListMessage* al
 
 void DroidEffectsModuleDataComponent::fillObjectMenuResponse(SceneObject* droidObject, ObjectMenuResponse* menuResponse, CreatureObject* player) {
 
-	if( player == NULL )
+	if( player == nullptr )
 		return;
 
 	// Novice Musician or Novice Dancer required to utilize this module
@@ -85,7 +88,7 @@ int DroidEffectsModuleDataComponent::handleObjectMenuSelect(CreatureObject* play
 	if( selectedID == EFFECTS_MODULE_TOGGLE ){
 
 		ManagedReference<DroidObject*> droid = getDroidObject();
-		if( droid == NULL ){
+		if( droid == nullptr ){
 			info( "Droid is null");
 			return 0;
 		}
@@ -131,7 +134,7 @@ int DroidEffectsModuleDataComponent::handleObjectMenuSelect(CreatureObject* play
 	else if( EFFECTS_MODULE_SLOT1 <= selectedID && selectedID <= EFFECTS_MODULE_SLOT10 ){
 
 		ManagedReference<DroidObject*> droid = getDroidObject();
-		if( droid == NULL ){
+		if( droid == nullptr ){
 			info( "Droid is null");
 			return 0;
 		}
@@ -234,7 +237,7 @@ void DroidEffectsModuleDataComponent::deactivate() {
 	currentEffectIndex = -1;
 
 	ManagedReference<DroidObject*> droid = getDroidObject();
-	if( droid == NULL ){
+	if( droid == nullptr ){
 		info( "Droid is null" );
 		return;
 	}
@@ -243,14 +246,14 @@ void DroidEffectsModuleDataComponent::deactivate() {
 
 	// Cancel effects task
 	Task* task = droid->getPendingTask( "droid_effects" );
-	if( task != NULL ){
+	if( task != nullptr ){
 		Core::getTaskManager()->cancelTask(task);
 		droid->removePendingTask( "droid_effects" );
 	}
 
 }
 
-String DroidEffectsModuleDataComponent::toString(){
+String DroidEffectsModuleDataComponent::toString() const {
 	return BaseDroidModuleComponent::toString();
 }
 
@@ -265,17 +268,17 @@ void DroidEffectsModuleDataComponent::onStore(){
 void DroidEffectsModuleDataComponent::addToStack(BaseDroidModuleComponent* other){
 
 	DroidEffectsModuleDataComponent* otherModule = cast<DroidEffectsModuleDataComponent*>(other);
-	if( otherModule == NULL )
+	if( otherModule == nullptr )
 		return;
 
 	DroidComponent* droidComponent = cast<DroidComponent*>(otherModule->getParent());
-	if (droidComponent == NULL) {
+	if (droidComponent == nullptr) {
 		info("droidComponent was null");
 		return;
 	}
 
-	ManagedReference<DroidEffectsModuleTemplate*> moduleTemplate = cast<DroidEffectsModuleTemplate*>(droidComponent->getObjectTemplate());
-	if (moduleTemplate == NULL){
+	Reference<DroidEffectsModuleTemplate*> moduleTemplate = cast<DroidEffectsModuleTemplate*>(droidComponent->getObjectTemplate());
+	if (moduleTemplate == nullptr){
 		info("Module was null");
 		return;
 	}

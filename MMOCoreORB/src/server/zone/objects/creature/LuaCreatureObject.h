@@ -74,6 +74,8 @@ namespace creature {
 		int isRebel(lua_State* L);
 		int isNeutral(lua_State* L);
 		int getFirstName(lua_State* L);
+		int getLastName(lua_State* L);
+		int setLastName(lua_State* L);
 		int isAiAgent(lua_State* L);
 		int setFactionRank(lua_State* L);
 		int getFactionRank(lua_State* L);
@@ -117,6 +119,7 @@ namespace creature {
 		int getDamageDealerList(lua_State* L);
 		int getHealingThreatList(lua_State* L);
 		int getSkillMod(lua_State* L);
+		int getGender(lua_State* L);
 	private:
 		// The pointer to the 'real object' defined in object.cc
 		CreatureObject* realObject;

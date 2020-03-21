@@ -4,8 +4,8 @@
 
 package server.zone;
 
-import engine.util.u3d.QuadTree;
-import engine.util.u3d.QuadTreeEntry;
+import server.zone.QuadTree;
+import server.zone.QuadTreeEntry;
 include server.chat.room.ChatRoom;
 
 import system.lang.Time;
@@ -27,9 +27,10 @@ include engine.util.u3d.Vector3;
 include server.zone.QuadTreeReference;
 
 import server.zone.objects.tangible.TangibleObject;
-import server.zone.objects.region.CityRegion;
 import server.zone.objects.pathfinding.NavArea;
 import system.thread.atomic.AtomicInteger;
+include system.thread.atomic.AtomicBoolean;
+include server.zone.objects.region.CityRegion;
 
 @mock
 class Zone extends SceneObject {
@@ -67,7 +68,8 @@ class Zone extends SceneObject {
 	@dereferenced
 	protected AtomicInteger spawnedAiAgents;
 
-	private transient boolean managersStarted;
+	@dereferenced
+	private transient AtomicBoolean managersStarted;
 	private transient boolean zoneCleared;
 
 	public native Zone(ZoneProcessServer processor, final string zoneName);
@@ -151,6 +153,7 @@ class Zone extends SceneObject {
 
 	public native void updateCityRegions();
 
+	@dirty
 	public native void sendMapLocationsTo(CreatureObject player);
 
 	@arg1preLocked
@@ -177,18 +180,22 @@ class Zone extends SceneObject {
 		return planetManager.getGCWManager();
 	}
 
+	@read
 	public unsigned long getGalacticTime() {
 		return galacticTime.miliDifference() / 1000;
 	}
 
+	@dirty
 	public boolean hasManagersStarted() {
-		return managersStarted;
+		return managersStarted.get();
 	}
 
+	@read
 	public boolean isZoneCleared() {
 		return zoneCleared;
 	}
 
+	@read
 	public int getSpawnedAiAgents() {
 		return spawnedAiAgents.get();
 	}

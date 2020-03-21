@@ -19,7 +19,7 @@ AtomicInteger DnaManager::loadedDnaData;
 DnaManager::DnaManager() : Logger("DnaManager") {
 	lua = new Lua();
 	lua->init();
-	lua_register(lua->getLuaState(), "addQualityTemplate", addQualityTemplate);
+	lua->registerFunction("addQualityTemplate", addQualityTemplate);
 
 	lua->setGlobalInt("FORTITUDE", DnaManager::FORTITUDE);
 	lua->setGlobalInt("ENDURANCE", DnaManager::ENDURANCE);
@@ -34,9 +34,9 @@ DnaManager::DnaManager() : Logger("DnaManager") {
 }
 
 DnaManager::~DnaManager() {
-	if (lua != NULL) {
+	if (lua != nullptr) {
 		delete lua;
-		lua = NULL;
+		lua = nullptr;
 	}
 }
 
@@ -74,7 +74,7 @@ void DnaManager::loadSampleData() {
 	}
 	info("Loaded " + String::valueOf(dnaDPS.size()) + " dna stats.", true);
 	delete lua;
-	lua = NULL;
+	lua = nullptr;
 }
 
 int DnaManager::generateXp(int creatureLevel) {
@@ -82,7 +82,7 @@ int DnaManager::generateXp(int creatureLevel) {
 	float x2 = 0.0025801845 * (creatureLevel * 3);
 	float x3 = 0.1673150401 * (creatureLevel * 2);
 	float x4 = 6.757844921 * creatureLevel;
-	float x5 = 46.75746899;
+	float x5 = 46.75746899f;
 	return (int)ceil(x1-x2+x3+x4+x5);
 }
 int DnaManager::addQualityTemplate(lua_State * L) {
@@ -121,7 +121,7 @@ void DnaManager::generationalSample(PetDeed* deed, CreatureObject* player,int qu
 
 	// calculate rest of stats here
 	ManagedReference<DnaComponent*> prototype = player->getZoneServer()->createObject(qualityTemplates.get(quality), 1).castTo<DnaComponent*>();
-	if (prototype == NULL) {
+	if (prototype == nullptr) {
 		return;
 	}
 	Locker clocker(prototype);
@@ -176,8 +176,9 @@ void DnaManager::generateSample(Creature* creature, CreatureObject* player,int q
 	if (quality < 0 || quality > 7) {
 		return;
 	}
-	Locker lock(creature,player);
-	CreatureTemplate* creatureTemplate = dynamic_cast<CreatureTemplate*>(creature->getCreatureTemplate());
+
+	Locker lock(creature, player);
+	auto creatureTemplate = dynamic_cast<const CreatureTemplate*>(creature->getCreatureTemplate());
 
 	int ferocity = creatureTemplate->getFerocity();
 	int cl = creature->getLevel();
@@ -203,12 +204,12 @@ void DnaManager::generateSample(Creature* creature, CreatureObject* player,int q
 
 	// We should now have enough to generate a sample
 	ManagedReference<DnaComponent*> prototype = player->getZoneServer()->createObject(qualityTemplates.get(quality), 1).castTo<DnaComponent*>();
-	if (prototype == NULL) {
+	if (prototype == nullptr) {
 		return;
 	}
 	Locker clocker(prototype);
 	// Check Here for unique npcs
-	StringId* nameId = creature->getObjectName();
+	const StringId* nameId = creature->getObjectName();
 	if (nameId->getFile().isEmpty() || nameId->getStringID().isEmpty()) {
 		prototype->setSource(creature->getCreatureName().toString());
 	} else {
@@ -250,7 +251,7 @@ void DnaManager::generateSample(Creature* creature, CreatureObject* player,int q
 	if (creatureTemplate->isSpecialProtection(SharedWeaponObjectTemplate::LIGHTSABER))
 		prototype->setSpecialResist(SharedWeaponObjectTemplate::LIGHTSABER);
 
-	CreatureAttackMap* attackMap = creatureTemplate->getAttacks();
+	auto attackMap = creatureTemplate->getAttacks();
 	if (attackMap->size() > 0) {
 		prototype->setSpecialAttackOne(String(attackMap->getCommand(0)));
 		if(attackMap->size() > 1) {

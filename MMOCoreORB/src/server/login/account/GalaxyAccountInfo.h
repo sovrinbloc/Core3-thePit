@@ -10,28 +10,29 @@
 
 #include "system/lang.h"
 #include "system/util/SynchronizedVectorMap.h"
+#include "engine/util/json.hpp"
 
 class GalaxyAccountInfo : public Object {
-	
 protected:
-	SynchronizedVectorMap<uint32, String> chosenVeteranRewards; // milestone, templateFile
-	
+	SynchronizedVectorMap<uint32_t, String> chosenVeteranRewards; // milestone, templateFile
+
 public:
-	
 	GalaxyAccountInfo();
-	
+
 	void updateVetRewardsFromPlayer(const VectorMap<uint32, String> &newRewards);
 
-	String getChosenVeteranReward(uint32 milestone);
+	String getChosenVeteranReward(uint32 milestone) const;
 
 	void addChosenVeteranReward(uint32 milestone, const String& rewardTemplate);
 
-	bool hasChosenVeteranReward(const String& rewardTemplate);
+	bool hasChosenVeteranReward(const String& rewardTemplate) const;
 
 	void clearVeteranReward(uint32 milestone);
-	
+
 	bool toBinaryStream(ObjectOutputStream* stream);
 	bool parseFromBinaryStream(ObjectInputStream* stream);
+
+	friend void to_json(nlohmann::json& j, const GalaxyAccountInfo& p);
 };
 
 #endif /* #define GALAXYACCOUNTINFO_H_ */
