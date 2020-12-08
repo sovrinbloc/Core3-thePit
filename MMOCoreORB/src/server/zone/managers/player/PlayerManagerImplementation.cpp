@@ -1197,8 +1197,8 @@ void PlayerManagerImplementation::killPlayer(TangibleObject* attacker, CreatureO
 
 	if (ghost != nullptr) {
 		ghost->resetIncapacitationTimes();
-		if (ghost->hasPvpTef()) {
-			ghost->schedulePvpTefRemovalTask(true, true);
+		if (ghost->hasTef()) {
+			ghost->schedulePvpTefRemovalTask(true, true, true);
 		}
 	}
 
@@ -1385,7 +1385,7 @@ void PlayerManagerImplementation::sendActivateCloneRequest(CreatureObject* playe
 				(cbot->getFacilityType() == CloningBuildingObjectTemplate::DARK_JEDI_ONLY && player->hasSkill("force_rank_dark_novice"))) {
 			FrsManager* frsManager = server->getFrsManager();
 
-			if (frsManager->isFrsEnabled()) {
+			if (frsManager != nullptr && frsManager->isFrsEnabled()) {
 				String name = "Jedi Enclave (" + String::valueOf((int)loc->getWorldPositionX()) + ", " + String::valueOf((int)loc->getWorldPositionY()) + ")";
 				cloneMenu->addMenuItem(name, loc->getObjectID());
 			}
@@ -1751,13 +1751,17 @@ void PlayerManagerImplementation::disseminateExperience(TangibleObject* destruct
 				awardExperience(attacker, xpType, xpAmount);
 			}
 
-			combatXp = awardExperience(attacker, "combat_general", combatXp, true, 0.1f);
+			awardExperience(attacker, "combat_general", combatXp, true, 0.1f);
+
 
 			//Check if the group leader is a squad leader
 			if (group == nullptr)
 				continue;
 
-			Vector3 pos(attacker->getWorldPositionX(), attacker->getWorldPositionY(), 0);
+			//Calculate squad leader group size experience @ 10% person + combat experience which is 10% of the variable
+			float squadXp = (combatXp * 0.1f) + (combatXp * 0.1f * group->getGroupSize());
+
+			Vector3 pos(attacker->getWorldPosition());
 
 			crossLocker.release();
 
@@ -1769,12 +1773,16 @@ void PlayerManagerImplementation::disseminateExperience(TangibleObject* destruct
 			Locker squadLock(groupLeader, destructedObject);
 
 			//If he is a squad leader, and is in range of this player, then add the combat exp for him to use.
-			if (groupLeader->hasSkill("outdoors_squadleader_novice") && pos.distanceTo(attacker->getWorldPosition()) <= ZoneServer::CLOSEOBJECTRANGE) {
-				int v = slExperience.get(groupLeader) + combatXp;
+			//Removed distance check to keep current functionality. Attacker was previously comparing its location to itself
+			if (groupLeader->hasSkill("outdoors_squadleader_novice")) {
+				int v = slExperience.get(groupLeader) + squadXp;
 				slExperience.put(groupLeader, v);
 			}
 		}
 	}
+
+
+
 
 	//Send out squad leader experience.
 	for (int i = 0; i < slExperience.size(); ++i) {
@@ -3664,6 +3672,37 @@ SortedVector<ManagedReference<SceneObject*> > PlayerManagerImplementation::getIn
 	}
 
 	return insurableItems;
+}
+
+SortedVector<ManagedReference<SceneObject*> > PlayerManagerImplementation::getInventoryItemsOfType(CreatureObject* player, int mask) {
+	SortedVector<ManagedReference<SceneObject*> > matchedItems;
+	matchedItems.setNoDuplicateInsertPlan();
+
+	if (player == nullptr)
+		return matchedItems;
+
+	SceneObject* inventory = player->getSlottedObject("inventory");
+
+	if ( inventory == nullptr )
+		return matchedItems;
+
+	for (int j = 0; j < inventory->getContainerObjectsSize(); j++) {
+		SceneObject* item = inventory->getContainerObject(j);
+
+		if (!item->isTangibleObject())
+			continue;
+
+		TangibleObject* tano = cast<TangibleObject*>( item);
+
+		if (tano == nullptr )
+			continue;
+
+		if ( (tano -> getGameObjectType()) & mask ) {
+			matchedItems.put(tano);
+		}
+	}
+
+	return matchedItems;
 }
 
 int PlayerManagerImplementation::calculatePlayerLevel(CreatureObject* player) {
