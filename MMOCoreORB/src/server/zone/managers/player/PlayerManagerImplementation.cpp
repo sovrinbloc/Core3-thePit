@@ -131,6 +131,8 @@ PlayerManagerImplementation::PlayerManagerImplementation(ZoneServer* zoneServer,
 	loadPermissionLevels();
 	loadXpBonusList();
 
+	onlinePlayersLogOnSessionChange = false;
+
 	setGlobalLogging(true);
 	setLogging(false);
 
@@ -3624,7 +3626,7 @@ void PlayerManagerImplementation::addInsurableItemsRecursive(SceneObject* obj, S
 
 		TangibleObject* item = cast<TangibleObject*>( object);
 
-		if (item == nullptr || item->hasAntiDecayKit())
+		if (item == nullptr || item->hasAntiDecayKit() || item->isJediRobe())
 			continue;
 
 		if (!(item->getOptionsBitmask() & OptionBitmask::INSURED) && (item->isArmorObject() || item->isWearableObject())) {
@@ -3658,7 +3660,7 @@ SortedVector<ManagedReference<SceneObject*> > PlayerManagerImplementation::getIn
 		if (container->isTangibleObject()) {
 			TangibleObject* item = cast<TangibleObject*>( container);
 
-			if (item == nullptr || item->hasAntiDecayKit())
+			if (item == nullptr || item->hasAntiDecayKit() || item->isJediRobe())
 				continue;
 
 			if (!(item->getOptionsBitmask() & OptionBitmask::INSURED) && (item->isArmorObject() || item->isWearableObject())) {
@@ -3860,7 +3862,7 @@ String PlayerManagerImplementation::banAccount(PlayerObject* admin, Account* acc
 	Locker locker(account);
 
 	account->setBanReason(reason);
-	account->setBanExpires(System::getMiliTime() + seconds * 1000);
+	account->setBanExpires(time(0) + seconds);
 	account->setBanAdmin(admin->getAccountID());
 
 	StringBuffer banResult;

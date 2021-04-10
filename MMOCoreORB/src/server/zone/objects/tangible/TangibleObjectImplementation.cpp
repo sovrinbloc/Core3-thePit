@@ -68,6 +68,8 @@ void TangibleObjectImplementation::loadTemplateData(SharedObjectTemplate* templa
 
 	sliceable = tanoData->getSliceable();
 
+	jediRobe = tanoData->isJediRobe();
+
 	faction = tanoData->getFaction();
 
 	junkDealerNeeded = tanoData->getJunkDealerNeeded();
@@ -556,7 +558,19 @@ void TangibleObjectImplementation::fillAttributeList(AttributeListMessage* alm, 
 		alm->insertAttribute("condition", cond);
 	}
 
-	alm->insertAttribute("volume", volume);
+	int volumeLimit = getContainerVolumeLimit();
+
+	if (volumeLimit >= 1 && getContainerType() == ContainerType::VOLUME) {
+		int objectCount = getCountableObjectsRecursive();
+
+		StringBuffer contentsString;
+		contentsString << objectCount << "/" << volumeLimit;
+
+		alm->insertAttribute("volume", volume + objectCount);
+		alm->insertAttribute("contents", contentsString);
+	} else {
+		alm->insertAttribute("volume", volume);
+	}
 
 	if (!craftersName.isEmpty()) {
 		alm->insertAttribute("crafter", craftersName);

@@ -29,6 +29,7 @@
 #include "server/zone/managers/gcw/tasks/SecurityRepairTask.h"
 #include "server/zone/managers/gcw/tasks/BaseShutdownTask.h"
 #include "server/zone/managers/gcw/tasks/BaseRebootTask.h"
+#include "server/zone/managers/gcw/tasks/UplinkTerminalResetTask.h"
 #include "server/zone/managers/gcw/GCWBaseShutdownObserver.h"
 #include "server/zone/managers/gcw/TerminalSpawn.h"
 
@@ -858,6 +859,9 @@ void GCWManagerImplementation::checkVulnerabilityData(BuildingObject* building) 
 		}
 	} else {
 		spawnBaseTerminals(building);
+
+		//Resets PVE Bases state on server reset
+		baseData->setState(DestructibleBuildingDataComponent::VULNERABLE);
 	}
 
 	if (baseData->getState() == DestructibleBuildingDataComponent::SHUTDOWNSEQUENCE) {
@@ -1107,6 +1111,17 @@ void GCWManagerImplementation::verifyUplinkBand(CreatureObject* creature, Buildi
 			creature->sendSystemMessage("You isolate the carrier signal to Channel #" + String::valueOf(band + 1) + ".");
 			creature->sendSystemMessage("Jamming complete! You disable the uplink...");
 			awardSlicingXP(creature, "bountyhunter", 1000);
+
+			//Schedule PVE base uplink reset
+			if (!(building->getPvpStatusBitmask() & CreatureFlag::OVERT)) {
+				GCWManager* gcwManager = zone->getGCWManager();
+
+				UplinkTerminalResetTask* task = new UplinkTerminalResetTask(building, gcwManager, baseData);
+
+				//Task Resets Base state 24 hours after uplink is jammed
+				task->schedule(24 * 60 * 60 * 1000);
+			}
+
 			return;
 		} else {
 			baseData->setState(DestructibleBuildingDataComponent::BAND);
@@ -2577,8 +2592,9 @@ float GCWManagerImplementation::getGCWDiscount(CreatureObject* creature) {
 			discount -= loserBonus / 100.f;
 	}
 
-	if (creature->getFaction() == Factions::FACTIONIMPERIAL && racialPenaltyEnabled && getRacialPenalty(creature->getSpecies()) > 0)
+	if (creature->getFaction() == Factions::FACTIONIMPERIAL && racialPenaltyEnabled && getRacialPenalty(creature->getSpecies()) > 0) {
 		discount *= getRacialPenalty(creature->getSpecies());
+	}
 
 	return discount;
 }
@@ -2618,6 +2634,22 @@ void GCWManagerImplementation::startContrabandScanSession(AiAgent* scanner, Crea
 	contrabandScanSession->initializeSession();
 }
 
+String GCWManagerImplementation::getCrackdownInfo(CreatureObject* player) const {
+	auto zone = player->getZone();
+	if (zone == nullptr) {
+		return "No zone information";
+	} else {
+		return "Crackdown scan information:"
+			"\nScans enabled - " + String::valueOf(crackdownScansEnabled) +
+			"\nScans enabled (privileged players) - " + String::valueOf(crackdownScanPrivilegedPlayers) +
+			"\nScans enabled on this planet - " + String::valueOf(planetsWithWildScans.find(zone->getZoneName()) != Vector<String>::npos) +
+			"\nPlayer has no scan cooldown - " + String::valueOf(player->checkCooldownRecovery("crackdown_scan")) +
+			"\nPlayer outside - " + String::valueOf(player->getParentID() == 0 || player->isRidingMount()) +
+			"\nIs spawning permitted at the coordinates - " + String::valueOf(zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY())) +
+			"\nIs player privileged - " + String::valueOf(player->getPlayerObject()->isPrivileged());
+	}
+}
+
 void GCWManagerImplementation::performCheckWildContrabandScanTask() {
 	if (!crackdownScansEnabled || planetsWithWildScans.find(zone->getZoneName()) == Vector<String>::npos) {
 		return;
@@ -2634,7 +2666,7 @@ void GCWManagerImplementation::performCheckWildContrabandScanTask() {
 		SceneObject* object = cast<SceneObject*>(closePlayers->get(playerIndex).get());
 		CreatureObject* player = object->asCreatureObject();
 
-		if (player->checkCooldownRecovery("crackdown_scan") && player->getParentID() == 0 && player->getPlayerObject() != nullptr &&
+		if (player->checkCooldownRecovery("crackdown_scan") && (player->getParentID() == 0 || player->isRidingMount()) && player->getPlayerObject() != nullptr &&
 			player->getPlayerObject()->getSessionMiliSecs() > 60 * 1000 && !player->isDead() && !player->isIncapacitated() && !player->isFeigningDeath() && !player->isInCombat() &&
 			zone->getPlanetManager()->isSpawningPermittedAt(player->getWorldPositionX(), player->getWorldPositionY())) {
 			if (crackdownScanPrivilegedPlayers || (player->getPlayerObject() != nullptr && !player->getPlayerObject()->isPrivileged())) {
